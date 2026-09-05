@@ -121,3 +121,11 @@ Esa licencia cubre exclusivamente el software. Los datos y las imágenes obtenid
 ## Aviso
 
 Se ofrece tal cual, sin garantía de ningún tipo. Las imágenes pueden no reflejar el estado actual de la vía. **No la uses como única fuente para tomar decisiones de seguridad vial.** Consulta siempre los canales oficiales de la DGT.
+
+## Créditos
+
+Todo el código de esta integración fue escrito por **Claude** (Anthropic) a lo largo de una sesión de trabajo, incluyendo el diseño inicial, la corrección de errores y dos auditorías completas en busca de fallos, vulnerabilidades y uso abusivo del servidor de origen.
+
+El papel humano consistió en definir los requisitos, ejecutar la integración en una instalación real de Home Assistant y aportar los registros de error que permitieron localizar y corregir los fallos. El icono se generó con una herramienta de IA a partir de una descripción propia y se ajustó después mediante código.
+
+Se documenta aquí por transparencia, no como reclamo: el código está comentado en detalle y cualquiera puede revisarlo y juzgarlo por sí mismo.
