@@ -1,0 +1,36 @@
+IMÁGENES DE MARCA DE LA INTEGRACIÓN "Cámaras de tráfico DGT"
+============================================================
+
+Estas imágenes son un DISEÑO ORIGINAL creado para esta integración.
+Fueron generadas con una herramienta de IA a partir de una descripción
+propia y después recortadas, ajustadas y optimizadas para cumplir los
+tamaños que espera Home Assistant.
+
+NO son el logotipo de la Dirección General de Tráfico y no deben
+confundirse con él. Se trata de un dibujo propio de una cámara de
+vigilancia sobre fondo azul, hecho con formas geométricas simples.
+
+Motivos por los que NO se incluye el logotipo oficial de la DGT:
+
+  1. Es un emblema institucional del Estado español. Su uso está
+     regulado y no consta autorización para redistribuirlo dentro de
+     un componente desarrollado por terceros.
+
+  2. Las normas de Home Assistant para integraciones personalizadas
+     advierten expresamente de que no deben usar imágenes que puedan
+     hacer creer al usuario que la integración es oficial o interna.
+     Esta integración NO es un producto oficial de la DGT: solo
+     consume sus datos abiertos.
+
+Ficheros incluidos (formato esperado por Home Assistant 2026.3+):
+
+  icon.png / icon@2x.png              iconos cuadrados (256 y 512 px)
+  dark_icon.png / dark_icon@2x.png    versiones para el tema oscuro
+  logo.png / logo@2x.png              logos apaisados (256 y 512 px)
+  dark_logo.png / dark_logo@2x.png    versiones para el tema oscuro
+
+Home Assistant los sirve automáticamente desde
+/api/brands/integration/dgt_traffic_cameras/ ; no hay que configurar nada.
+
+Si prefieres tus propias imágenes, basta con reemplazar estos ficheros
+respetando los mismos nombres y tamaños, y reiniciar Home Assistant.

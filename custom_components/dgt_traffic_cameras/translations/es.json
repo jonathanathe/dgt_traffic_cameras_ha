@@ -1,0 +1,67 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Cámaras de tráfico DGT",
+        "description": "Elige la provincia. Nota: el feed de la DGT no incluye País Vasco ni Cataluña.",
+        "data": {
+          "province": "Provincia"
+        }
+      },
+      "road": {
+        "title": "Elige la carretera",
+        "data": {
+          "road": "Carretera"
+        }
+      },
+      "cameras": {
+        "title": "Elige las cámaras a añadir",
+        "data": {
+          "camera_ids": "Cámaras"
+        }
+      }
+    },
+    "error": {
+      "timeout": "La DGT ha tardado demasiado en responder. Inténtalo de nuevo.",
+      "cannot_connect": "No se pudo descargar el listado de cámaras de la DGT.",
+      "no_cameras_found": "El feed de la DGT no devolvió ninguna cámara.",
+      "no_cameras_selected": "Selecciona al menos una cámara.",
+      "inventory_too_large": "El listado de la DGT es más grande de lo esperado y se ha descartado por seguridad."
+    },
+    "abort": {
+      "no_roads_found": "No se encontraron carreteras para esa provincia.",
+      "already_configured": "Esa provincia y carretera ya están añadidas."
+    }
+  },
+  "options": {
+    "step": {
+      "province": {
+        "title": "Añadir más cámaras: elige provincia",
+        "data": {
+          "province": "Provincia"
+        }
+      },
+      "road": {
+        "title": "Elige la carretera",
+        "data": {
+          "road": "Carretera"
+        }
+      },
+      "cameras": {
+        "title": "Elige las cámaras a añadir",
+        "data": {
+          "camera_ids": "Cámaras"
+        }
+      }
+    },
+    "error": {
+      "timeout": "La DGT ha tardado demasiado en responder. Inténtalo de nuevo.",
+      "cannot_connect": "No se pudo descargar el listado de cámaras de la DGT.",
+      "no_cameras_found": "El feed de la DGT no devolvió ninguna cámara.",
+      "inventory_too_large": "El listado de la DGT es más grande de lo esperado y se ha descartado por seguridad."
+    },
+    "abort": {
+      "no_roads_found": "No se encontraron carreteras para esa provincia."
+    }
+  }
+}

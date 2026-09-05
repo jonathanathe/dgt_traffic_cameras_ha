@@ -1,0 +1,12 @@
+{
+  "domain": "dgt_traffic_cameras",
+  "name": "Cámaras de tráfico DGT",
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://nap.dgt.es/dataset",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "loggers": ["custom_components.dgt_traffic_cameras"],
+  "requirements": [],
+  "version": "1.0.0"
+}
