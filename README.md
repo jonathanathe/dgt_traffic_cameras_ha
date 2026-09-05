@@ -4,6 +4,8 @@ Integración personalizada que añade las cámaras de tráfico de la Dirección 
 
 > **Proyecto no oficial.** No está afiliado, patrocinado ni respaldado por la DGT. Únicamente consume datos publicados en abierto.
 
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jonathanathe&repository=dgt_traffic_cameras_ha&category=integration)
+
 ---
 
 ## Qué hace
