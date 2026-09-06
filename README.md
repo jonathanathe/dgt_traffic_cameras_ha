@@ -15,6 +15,7 @@ Integración personalizada que añade las cámaras de tráfico y los paneles de 
 - Crea una entidad `camera.*` por cada cámara seleccionada, con su carretera, punto kilométrico, sentido y coordenadas como atributos.
 - Crea una entidad `sensor.*` por cada panel seleccionado, con el mensaje que está mostrando ahora mismo como estado, y como atributos el texto completo, sus líneas por separado, los pictogramas activos, si está apagado y la hora del último cambio. Si el panel tiene un pictograma activo (velocidad controlada, obras, etc.), la entidad muestra el icono real de la DGT para ese pictograma en vez de un icono genérico.
 - Deja añadir o quitar dispositivos de una entrada ya creada desde **Opciones**, sin tener que volver a montarla desde cero.
+- Incluye, como pieza opcional, una tarjeta de Lovelace ([`www/dgt-panel-card.js`](www/dgt-panel-card.js)) que dibuja el cartel de un panel con el mismo aspecto que el visor oficial de la DGT.
 
 La DGT publica **instantáneas fijas** de las cámaras, no vídeo en directo: cada foto se renueva unas pocas veces por hora en origen. Los mensajes de los paneles se comprueban cada 5 minutos con una única descarga compartida por todos los paneles configurados, tengas 1 o 100.
 
@@ -65,6 +66,26 @@ Cada combinación de provincia + carretera + tipo crea una entrada propia, que a
 Usa el botón de **Opciones** (el engranaje) de esa entrada. Si es una entrada de cámaras, te ofrece **Añadir cámaras** / **Quitar cámaras**; si es de paneles, **Añadir paneles** / **Quitar paneles**. Para una carretera o provincia distinta, añade una nueva entrada desde cero.
 
 Al quitar un dispositivo, su entidad se elimina por completo de Home Assistant (no se queda como "no disponible"). No se pueden quitar todos los dispositivos de una entrada desde aquí: si quieres vaciarla del todo, elimina la entrada entera desde **Dispositivos y servicios**.
+
+### Tarjeta del panel (opcional)
+
+`www/dgt-panel-card.js` es una tarjeta de Lovelace personalizada que dibuja el cartel de un panel con el mismo aspecto que el visor oficial de la DGT (fondo del panel, pictograma a la izquierda, texto amarillo monoespaciado), a partir de los atributos de su entidad `sensor.*`. Es opcional: sin ella, la entidad funciona igual, solo que sin esta representación visual.
+
+**Instalación:**
+
+1. Copia `www/dgt-panel-card.js` a la carpeta `config/www/` de tu Home Assistant (créala si no existe).
+2. Ve a **Ajustes → Paneles de control → Recursos** (los tres puntos de arriba a la derecha en la lista de dashboards → *Recursos*; si no lo ves, activa antes el *Modo avanzado* en tu perfil de usuario).
+3. Añade un recurso nuevo: URL `/local/dgt-panel-card.js`, tipo **Módulo JavaScript**.
+4. Recarga la página del navegador (Ctrl+F5).
+
+**Uso**, en cualquier dashboard, añadiendo una tarjeta manual en YAML:
+
+```yaml
+type: custom:dgt-panel-card
+entity: sensor.panel_dgt_xxxxx
+```
+
+Si el panel no tiene ningún mensaje activo, la tarjeta muestra el cartel vacío con "Sin mensaje" en vez de inventarse contenido.
 
 ---
 
