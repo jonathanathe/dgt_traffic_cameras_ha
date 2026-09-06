@@ -1,6 +1,6 @@
 # Cámaras de tráfico DGT para Home Assistant
 
-Integración personalizada que añade las cámaras de tráfico de la Dirección General de Tráfico (DGT) como entidades `camera` en Home Assistant, con un selector guiado por provincia y carretera.
+Integración personalizada que añade las cámaras de tráfico y los paneles de mensaje variable (PMV) de la Dirección General de Tráfico (DGT) a Home Assistant, con un selector guiado por provincia y carretera.
 
 > **Proyecto no oficial.** No está afiliado, patrocinado ni respaldado por la DGT. Únicamente consume datos publicados en abierto.
 
@@ -10,17 +10,21 @@ Integración personalizada que añade las cámaras de tráfico de la Dirección 
 
 ## Qué hace
 
-- Descarga el inventario público de cámaras de la DGT (formato DATEX II, sin necesidad de clave de API).
-- Te deja elegir las cámaras en tres pasos: **provincia → carretera → cámaras concretas**.
+- Descarga los datos públicos de la DGT (formato DATEX II, sin necesidad de clave de API): el inventario de cámaras y, por separado, la ubicación y los mensajes de los paneles de mensaje variable (PMV).
+- Te deja elegir, en el mismo asistente guiado, entre **cámaras** o **paneles**, y dentro de cada tipo en tres pasos: **provincia → carretera → dispositivos concretos**.
 - Crea una entidad `camera.*` por cada cámara seleccionada, con su carretera, punto kilométrico, sentido y coordenadas como atributos.
+- Crea una entidad `sensor.*` por cada panel seleccionado, con el mensaje que está mostrando ahora mismo como estado, y como atributos el texto completo, sus líneas por separado, los pictogramas activos, si está apagado y la hora del último cambio.
+- Deja añadir o quitar dispositivos de una entrada ya creada desde **Opciones**, sin tener que volver a montarla desde cero.
 
-La DGT publica **instantáneas fijas**, no vídeo en directo. Cada foto se renueva unas pocas veces por hora en origen.
+La DGT publica **instantáneas fijas** de las cámaras, no vídeo en directo: cada foto se renueva unas pocas veces por hora en origen. Los mensajes de los paneles se comprueban cada 5 minutos con una única descarga compartida por todos los paneles configurados, tengas 1 o 100.
 
 ## Qué **no** hace
 
-- **No incluye País Vasco ni Cataluña.** No es una limitación de la integración: esas comunidades tienen la gestión de tráfico transferida a sus propias administraciones y sus cámaras no están en el feed de la DGT.
-- **No hay vídeo ni grabación.** Solo la última imagen disponible.
+- **No incluye País Vasco ni Cataluña.** No es una limitación de la integración: esas comunidades tienen la gestión de tráfico transferida a sus propias administraciones y ni sus cámaras ni sus paneles están en los feeds de la DGT.
+- **No hay vídeo ni grabación.** Solo la última imagen disponible de cada cámara.
 - No almacena ni redistribuye imágenes: cada instalación las descarga directamente de los servidores de la DGT.
+- **No detecta averías de los paneles.** El feed actual de la DGT no incluye ningún indicador de fallo del propio panel; solo se puede saber si un panel no está emitiendo ningún mensaje ahora mismo (se refleja como "sin mensaje" o "sin datos", no como avería).
+- No muestra cámaras ni paneles en el mapa de Home Assistant (se valoró añadirlo, pero la forma de personalizar la etiqueta de cada punto requiere montar una tarjeta de Mapa aparte en un dashboard, así que de momento queda fuera).
 
 ---
 
@@ -43,15 +47,24 @@ La DGT publica **instantáneas fijas**, no vídeo en directo. Cada foto se renue
 
 Todo se hace desde la interfaz, no hace falta tocar YAML.
 
-1. **Provincia** — desplegable con las provincias que tienen cámaras disponibles.
+Al añadir la integración (**Ajustes → Dispositivos y servicios → Añadir integración → Cámaras de tráfico DGT**), lo primero es elegir qué quieres añadir:
+
+- **Cámaras de tráfico (imágenes)**
+- **Paneles de mensaje variable (texto)**
+
+A partir de ahí el asistente es igual para los dos tipos:
+
+1. **Provincia** — desplegable con las provincias que tienen dispositivos de ese tipo disponibles.
 2. **Carretera** — las vías de esa provincia.
-3. **Cámaras** — lista con casillas, ordenada por punto kilométrico.
+3. **Cámaras** o **Paneles** — lista con casillas, ordenada por punto kilométrico.
 
-Cada combinación de provincia y carretera crea una entrada propia, que agrupa sus cámaras bajo un mismo dispositivo.
+Cada combinación de provincia + carretera + tipo crea una entrada propia, que agrupa sus dispositivos bajo un mismo dispositivo de Home Assistant. Una misma entrada nunca mezcla cámaras y paneles.
 
-Para añadir más cámaras de la misma carretera más adelante, o para quitar alguna que ya no quieras, usa el botón de **Opciones** (el engranaje) de esa entrada: te preguntará si quieres **Añadir cámaras** o **Quitar cámaras**. Para otra carretera distinta, añade una nueva entrada.
+### Añadir o quitar dispositivos de una entrada ya creada
 
-Al quitar una cámara, su entidad se elimina por completo de Home Assistant (no se queda como "no disponible"). No se pueden quitar todas las cámaras de una entrada desde aquí: si quieres vaciarla del todo, elimina la entrada entera desde **Dispositivos y servicios**.
+Usa el botón de **Opciones** (el engranaje) de esa entrada. Si es una entrada de cámaras, te ofrece **Añadir cámaras** / **Quitar cámaras**; si es de paneles, **Añadir paneles** / **Quitar paneles**. Para una carretera o provincia distinta, añade una nueva entrada desde cero.
+
+Al quitar un dispositivo, su entidad se elimina por completo de Home Assistant (no se queda como "no disponible"). No se pueden quitar todos los dispositivos de una entrada desde aquí: si quieres vaciarla del todo, elimina la entrada entera desde **Dispositivos y servicios**.
 
 ---
 
@@ -59,20 +72,27 @@ Al quitar una cámara, su entidad se elimina por completo de Home Assistant (no 
 
 Este es el punto al que más atención se le ha dedicado. La integración usa un servicio público gratuito, y saturarlo sería un problema tanto para la DGT como para el usuario, que acabaría bloqueado.
 
+### Cámaras
+
 | Medida | Efecto |
 |---|---|
-| **Caché de 10 minutos por cámara** | Aunque el panel refresque la tarjeta cada pocos segundos, solo se pide una foto nueva cada 10 minutos. |
+| **Caché de 10 minutos por cámara** | Aunque el dashboard refresque la tarjeta cada pocos segundos, solo se pide una foto nueva cada 10 minutos. |
 | **Caché condicional** (`ETag` / `If-Modified-Since`) | Al refrescar se pregunta si la imagen ha cambiado. Si no, la respuesta son unos pocos bytes en lugar de la foto completa. |
 | **Backoff exponencial ante fallos** | Si la DGT falla, se espera cada vez más antes de reintentar (1, 2, 4, 8... hasta 60 minutos) en lugar de insistir. |
 | **Inventario cacheado 15 minutos** | Abrir el diálogo de configuración varias veces no vuelve a descargar el listado completo. |
 | **`frame_interval` ajustado** | Se le indica a Home Assistant que no tiene sentido pedir fotogramas más a menudo. |
 
-En un escenario de 28 cámaras con el panel abierto una hora, esto supone unas **168 peticiones** en lugar de las más de 1.100 que generaría un enfoque sin caché — y más de 10.000 si el servidor estuviera fallando.
+En un escenario de 28 cámaras con el dashboard abierto una hora, esto supone unas **168 peticiones** en lugar de las más de 1.100 que generaría un enfoque sin caché — y más de 10.000 si el servidor estuviera fallando.
+
+### Paneles de mensaje variable
+
+Los paneles no funcionan cámara a cámara: **una única descarga cada 5 minutos trae el mensaje de todos los paneles configurados a la vez**, sea cual sea su número o el de entradas de configuración que los agrupen. Tener 1 panel o 100 genera exactamente el mismo tráfico contra la DGT. Su ubicación (carretera, provincia, coordenadas) cambia muy poco, así que se cachea aparte durante 24 horas en lugar de descargarse en cada paso del asistente.
 
 ## Otras medidas técnicas
 
 - **Validación de URLs**: solo se aceptan direcciones HTTPS de dominios de la DGT, para que un feed manipulado no pueda hacer que Home Assistant consulte equipos de la red interna.
 - **Verificación de la respuesta**: se comprueba que los bytes recibidos sean realmente una imagen, no una página de error servida con código 200.
+- **Detección de la imagen "no disponible" de la propia DGT**: cuando una cámara está averiada, la DGT no da un error, sirve un aviso fijo con el dibujo de un carrete de película. Se detecta por su huella visual (no por su tamaño en bytes, que varía según la compresión) y no se guarda como si fuera una foto real.
 - **Límites de tamaño** en descargas, con lectura por bloques que aborta si se superan.
 - **Parseo fuera del bucle de eventos**, para que procesar el XML no congele Home Assistant.
 
@@ -82,7 +102,7 @@ En un escenario de 28 cámaras con el panel abierto una hora, esto supone unas *
 
 - Home Assistant en una versión reciente (la integración usa el flujo de opciones moderno, disponible desde 2024.11).
 - Para que se muestre el icono de la integración se necesita **Home Assistant 2026.3 o superior**, que es cuando se añadió el soporte para imágenes de marca locales. En versiones anteriores todo funciona igual, pero se verá el marcador genérico de "icono no disponible".
-- No requiere dependencias de Python adicionales.
+- Depende de **Pillow** (procesamiento de imágenes), que Home Assistant instala solo al añadir la integración; no requiere ninguna otra dependencia de Python.
 
 ## Resolución de problemas
 
@@ -105,6 +125,15 @@ Es el comportamiento esperado: el intervalo mínimo es de 10 minutos. Puede modi
 
 **Una cámara concreta nunca carga.**
 Las cámaras de la DGT se averían o se retiran del servicio con cierta frecuencia. Comprueba si esa cámara se ve en el visor oficial de la DGT antes de dar por hecho que el problema es de la integración.
+
+**Un panel aparece como "Sin datos" o "Sin mensaje".**
+Son dos cosas distintas y ninguna es un fallo de la integración:
+
+- **"Sin mensaje"** — el panel está encendido pero no muestra nada ahora mismo (pantalla en blanco). Es su estado real, tal cual lo reporta la DGT.
+- **"Sin datos"** — ese panel concreto no venía en la última descarga de mensajes. No todos los paneles emiten siempre; si persiste mucho tiempo, comprueba si el panel existe todavía en el visor oficial de la DGT.
+
+**Los paneles no se actualizan.**
+El intervalo es de 5 minutos para todos los paneles a la vez (ver [Cómo se protege al servidor de la DGT](#cómo-se-protege-al-servidor-de-la-dgt)). Puede modificarse en `const.py`, en la constante `VMS_MESSAGES_UPDATE_INTERVAL_SECONDS`.
 
 ---
 
