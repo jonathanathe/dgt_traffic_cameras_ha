@@ -78,7 +78,7 @@ Al quitar un dispositivo, su entidad se elimina por completo de Home Assistant (
 3. Añade un recurso nuevo: URL `/local/dgt-panel-card.js`, tipo **Módulo JavaScript**.
 4. Recarga la página del navegador (Ctrl+F5).
 
-**Instalación con HACS:** además de la integración, este repositorio se puede añadir una segunda vez en HACS como repositorio personalizado de categoría **Plugin**, para que HACS gestione la descarga y las actualizaciones del fichero por ti (sigue haciendo falta el paso 2-4 de arriba para añadirlo como recurso). No confirmado end-to-end como el resto de esta integración, dilo si algo no encaja.
+**Instalación con HACS:** además de la integración, este repositorio se puede añadir una segunda vez en HACS como repositorio personalizado de categoría **Dashboard** (así se llama en el desplegable de HACS; internamente es la categoría "plugin"), para que HACS gestione la descarga y las actualizaciones del fichero por ti (sigue haciendo falta el paso 2-4 de arriba para añadirlo como recurso). No confirmado end-to-end como el resto de esta integración, dilo si algo no encaja.
 
 **Uso**, en cualquier dashboard, añadiendo una tarjeta manual en YAML:
 
