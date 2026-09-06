@@ -35,6 +35,13 @@
   },
   "options": {
     "step": {
+      "init": {
+        "title": "Cámaras de tráfico DGT",
+        "menu_options": {
+          "add_cameras": "Añadir cámaras",
+          "remove_cameras": "Quitar cámaras"
+        }
+      },
       "province": {
         "title": "Añadir más cámaras: elige provincia",
         "data": {
@@ -52,16 +59,25 @@
         "data": {
           "camera_ids": "Cámaras"
         }
+      },
+      "remove_cameras": {
+        "title": "Elige las cámaras a quitar",
+        "data": {
+          "camera_ids": "Cámaras"
+        }
       }
     },
     "error": {
       "timeout": "La DGT ha tardado demasiado en responder. Inténtalo de nuevo.",
       "cannot_connect": "No se pudo descargar el listado de cámaras de la DGT.",
       "no_cameras_found": "El feed de la DGT no devolvió ninguna cámara.",
+      "no_cameras_selected": "Selecciona al menos una cámara.",
+      "cannot_remove_all_cameras": "No puedes quitar todas las cámaras desde aquí. Si quieres quitarlas todas, elimina esta entrada completa desde Dispositivos y servicios.",
       "inventory_too_large": "El listado de la DGT es más grande de lo esperado y se ha descartado por seguridad."
     },
     "abort": {
-      "no_roads_found": "No se encontraron carreteras para esa provincia."
+      "no_roads_found": "No se encontraron carreteras para esa provincia.",
+      "no_cameras_to_remove": "Esta entrada no tiene ninguna cámara guardada."
     }
   }
 }

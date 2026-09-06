@@ -23,6 +23,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
     SelectOptionDict,
@@ -201,11 +202,12 @@ class DgtTrafficCamerasConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class DgtTrafficCamerasOptionsFlow(config_entries.OptionsFlow):
-    """Permite añadir más cámaras a una entrada ya existente.
+    """Permite añadir o quitar cámaras de una entrada ya existente.
 
-    Reutiliza el mismo flujo de 3 pasos que la configuración inicial, pero
-    al terminar fusiona las cámaras nuevas con las que ya había, en vez de
-    reemplazarlas.
+    Para añadir, reutiliza el mismo flujo de 3 pasos que la configuración
+    inicial, pero al terminar fusiona las cámaras nuevas con las que ya
+    había, en vez de reemplazarlas. Para quitar, muestra directamente las
+    cámaras ya guardadas en esta entrada.
     """
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
@@ -220,6 +222,13 @@ class DgtTrafficCamerasOptionsFlow(config_entries.OptionsFlow):
         self._road: str | None = None
 
     async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        return self.async_show_menu(
+            step_id="init", menu_options=["add_cameras", "remove_cameras"]
+        )
+
+    async def async_step_add_cameras(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         return await self.async_step_province(user_input)
@@ -327,6 +336,84 @@ class DgtTrafficCamerasOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="cameras", data_schema=_cameras_schema(candidates)
         )
+
+    async def async_step_remove_cameras(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Quita de esta entrada las cámaras que el usuario marque.
+
+        A diferencia de "añadir", aquí no hace falta descargar el inventario
+        de la DGT: las cámaras candidatas son directamente las que ya están
+        guardadas en la ConfigEntry.
+        """
+        existing = list(self.config_entry.data.get(CONF_CAMERAS, []))
+
+        if user_input is not None:
+            selected_ids = set(user_input["camera_ids"])
+            if not selected_ids:
+                return self.async_show_form(
+                    step_id="remove_cameras",
+                    data_schema=_remove_cameras_schema(existing),
+                    errors={"base": "no_cameras_selected"},
+                )
+
+            remaining = [c for c in existing if c["device_id"] not in selected_ids]
+            if not remaining:
+                # Dejar la entrada sin ninguna cámara no tiene sentido: si el
+                # usuario quiere quitarlas todas, lo correcto es eliminar la
+                # entrada entera desde Ajustes > Dispositivos y servicios.
+                return self.async_show_form(
+                    step_id="remove_cameras",
+                    data_schema=_remove_cameras_schema(existing),
+                    errors={"base": "cannot_remove_all_cameras"},
+                )
+
+            # Además de sacarlas de la configuración, hay que borrar su
+            # entidad del registro. Si no lo hiciéramos, la entidad se
+            # quedaría "huérfana" (aparecería como no disponible en
+            # Ajustes > Entidades) en vez de desaparecer del todo.
+            registry = er.async_get(self.hass)
+            for camera_data in existing:
+                device_id = camera_data.get("device_id")
+                if device_id not in selected_ids:
+                    continue
+                unique_id = f"{self.config_entry.entry_id}_{device_id}"
+                entity_id = registry.async_get_entity_id("camera", DOMAIN, unique_id)
+                if entity_id:
+                    registry.async_remove(entity_id)
+
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                data={**self.config_entry.data, CONF_CAMERAS: remaining},
+            )
+            return self.async_create_entry(title="", data={})
+
+        if not existing:
+            return self.async_abort(reason="no_cameras_to_remove")
+
+        return self.async_show_form(
+            step_id="remove_cameras", data_schema=_remove_cameras_schema(existing)
+        )
+
+
+def _remove_cameras_schema(cameras: list[dict[str, Any]]) -> vol.Schema:
+    options = [
+        SelectOptionDict(
+            value=c["device_id"], label=c.get("name") or c["device_id"]
+        )
+        for c in cameras
+    ]
+    return vol.Schema(
+        {
+            vol.Required("camera_ids"): SelectSelector(
+                SelectSelectorConfig(
+                    options=options,
+                    multiple=True,
+                    mode=SelectSelectorMode.LIST,
+                )
+            )
+        }
+    )
 
 
 def _cameras_schema(candidates: list[DgtCamera]) -> vol.Schema:
