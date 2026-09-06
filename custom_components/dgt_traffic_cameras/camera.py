@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import io
 import logging
 import time
 
@@ -32,6 +33,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from PIL import Image
 
 from .api import is_allowed_image_url
 from .const import (
@@ -47,6 +49,8 @@ from .const import (
     IMAGE_MAGIC_OFFSET_CHECKS,
     MAX_IMAGE_BYTES,
     MIN_SECONDS_BETWEEN_IMAGE_FETCH,
+    PLACEHOLDER_IMAGE_AHASH,
+    PLACEHOLDER_IMAGE_AHASH_MAX_DISTANCE,
     PLACEHOLDER_IMAGE_SHA256_HASHES,
     REJECTED_CONTENT_TYPE_PREFIXES,
 )
@@ -353,7 +357,16 @@ class DgtTrafficCamera(Camera):
                     # cámara está averiada. Hay que descartarla igual que un
                     # fallo de red: si no, se guardaría en el caché como si
                     # fuera la foto real de la carretera.
-                    if hashlib.sha256(datos).hexdigest() in PLACEHOLDER_IMAGE_SHA256_HASHES:
+                    #
+                    # Primero el hash exacto (rápido, no hace falta decodificar
+                    # la imagen) y, si no coincide, el hash perceptual (más
+                    # lento pero detecta esta misma imagen aunque la DGT la
+                    # sirva con otra compresión, como ya nos ha pasado).
+                    if hashlib.sha256(
+                        datos
+                    ).hexdigest() in PLACEHOLDER_IMAGE_SHA256_HASHES or await self.hass.async_add_executor_job(
+                        _es_imagen_no_disponible, datos
+                    ):
                         _LOGGER.debug(
                             "Cámara %s: la DGT devolvió su imagen de "
                             "'no disponible'; se trata como un fallo",
@@ -411,5 +424,59 @@ def _parece_imagen(datos: bytes) -> bool:
             and datos[pos2 : pos2 + len(firma2)] == firma2
         ):
             return True
+
+    return False
+
+
+def _calcular_ahash(datos: bytes, tamano: int = 16) -> int:
+    """Calcula el hash perceptual (average hash) de una imagen.
+
+    Reduce la imagen a una cuadrícula de tamano x tamano en escala de
+    grises y anota, píxel a píxel, si es más claro o más oscuro que la
+    media. El resultado son tamano*tamano bits que describen el ASPECTO
+    general de la imagen, no sus bytes exactos: dos imágenes casi iguales
+    (por ejemplo la misma foto con distinta compresión JPEG) dan un hash
+    idéntico o casi idéntico, a diferencia de un hash criptográfico como
+    SHA-256, que cambiaría por completo con solo un byte distinto.
+
+    Esta función hace trabajo de CPU (decodificar la imagen), así que
+    SIEMPRE se llama desde un hilo aparte (hass.async_add_executor_job),
+    nunca directamente desde el bucle de eventos.
+    """
+    with Image.open(io.BytesIO(datos)) as img:
+        gris = img.convert("L").resize((tamano, tamano), Image.LANCZOS)
+        pixeles = list(gris.getdata())
+
+    media = sum(pixeles) / len(pixeles)
+    bits = "".join("1" if p >= media else "0" for p in pixeles)
+    return int(bits, 2)
+
+
+def _es_imagen_no_disponible(datos: bytes) -> bool:
+    """¿Son estos bytes una variante de la imagen "no disponible" de la DGT?
+
+    Compara el hash perceptual de la imagen descargada con el de la imagen
+    de referencia (ver PLACEHOLDER_IMAGE_AHASH en const.py) contando en
+    cuántos de los 256 bits difieren (distancia de Hamming). Una foto de
+    carretera real, al ser visualmente muy distinta, da una distancia
+    altísima; esta misma imagen con otra compresión da una distancia muy
+    baja o nula.
+
+    Si la imagen no se puede decodificar (formato raro, fichero corrupto...)
+    se asume que NO es el aviso de "no disponible": ya la ha aceptado antes
+    _parece_imagen, así que lo prudente es tratarla como una foto real en
+    vez de descartarla por un fallo al decodificarla.
+    """
+    try:
+        hash_actual = _calcular_ahash(datos)
+    except Exception:  # noqa: BLE001 - cualquier fallo al decodificar cuenta como "no es el aviso"
+        _LOGGER.debug(
+            "No se pudo calcular el hash perceptual de la imagen descargada",
+            exc_info=True,
+        )
+        return False
+
+    distancia = bin(hash_actual ^ PLACEHOLDER_IMAGE_AHASH).count("1")
+    return distancia <= PLACEHOLDER_IMAGE_AHASH_MAX_DISTANCE
 
     return False

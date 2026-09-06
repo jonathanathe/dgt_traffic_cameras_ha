@@ -199,7 +199,34 @@ IMAGE_MAGIC_OFFSET_CHECKS = (
 # fiarse del tamaño en bytes, que si varía según la cámara o la hora del día.
 PLACEHOLDER_IMAGE_SHA256_HASHES = frozenset(
     {
-        # "Imagen no disponible" (carrete de película sobre fondo gris).
+        # "Imagen no disponible" (carrete de película sobre fondo gris),
+        # variante servida con más compresión (~32 KB).
         "e8703ff5957fa4136be7c39ef1bc8c61d7d2c54a46537791a1fb08467145cdb3",
+        # Misma imagen, variante servida con menos compresión (~9 KB). La
+        # DGT no siempre sirve el mismo fichero exacto para este aviso, así
+        # que además del hash exacto (rápido, pero solo pilla variantes ya
+        # vistas) se comprueba también un hash "perceptual" más abajo, que
+        # detecta cualquier otra variante nueva sin tener que añadirla aquí.
+        "3b6ace4fb0afcd5eeae11ec27659946fa2028b3fc87ec5fd1878a3057e71b1d",
     }
 )
+
+# Hash perceptual (aHash de 16x16 en escala de grises) de la imagen de "no
+# disponible" de arriba. A diferencia del SHA-256, es el mismo aunque el
+# fichero cambie de compresión o de calidad JPEG, porque compara el
+# ASPECTO de la imagen, no sus bytes exactos.
+#
+# Cómo se calculó: convertir a escala de grises, reducir a 16x16 píxeles,
+# y por cada píxel poner un "1" si es más claro que la media de la imagen
+# o un "0" si no. Los 256 bits resultantes, leídos como un único número.
+PLACEHOLDER_IMAGE_AHASH = int(
+    "ffffffffffffffffc9ffc1ffc83fc83fc007c007c9ffffffffffffffffffffff", 16
+)
+
+# Cuántos de esos 256 bits pueden diferir como máximo para seguir
+# considerando que es la misma imagen. Las dos variantes reales que hemos
+# visto dan distancia 0 entre sí; un margen de 16 bits (~6%) da colchón
+# para variaciones de compresión sin arriesgarse a confundir una foto de
+# carretera de verdad (que da una distancia altísima, cientos de bits)
+# con el aviso de "no disponible".
+PLACEHOLDER_IMAGE_AHASH_MAX_DISTANCE = 16
