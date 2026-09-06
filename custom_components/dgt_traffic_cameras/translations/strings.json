@@ -68,7 +68,9 @@
         "title": "Cámaras de tráfico DGT",
         "menu_options": {
           "add_cameras": "Añadir cámaras",
-          "remove_cameras": "Quitar cámaras"
+          "remove_cameras": "Quitar cámaras",
+          "add_panels": "Añadir paneles",
+          "remove_panels": "Quitar paneles"
         }
       },
       "province": {
@@ -94,20 +96,47 @@
         "data": {
           "camera_ids": "Cámaras"
         }
+      },
+      "panel_province": {
+        "title": "Añadir más paneles: elige provincia",
+        "data": {
+          "province": "Provincia"
+        }
+      },
+      "panel_road": {
+        "title": "Elige la carretera",
+        "data": {
+          "road": "Carretera"
+        }
+      },
+      "panels": {
+        "title": "Elige los paneles a añadir",
+        "data": {
+          "panel_ids": "Paneles"
+        }
+      },
+      "remove_panels": {
+        "title": "Elige los paneles a quitar",
+        "data": {
+          "panel_ids": "Paneles"
+        }
       }
     },
     "error": {
       "timeout": "La DGT ha tardado demasiado en responder. Inténtalo de nuevo.",
-      "cannot_connect": "No se pudo descargar el listado de cámaras de la DGT.",
+      "cannot_connect": "No se pudo descargar el listado de la DGT.",
       "no_cameras_found": "El feed de la DGT no devolvió ninguna cámara.",
       "no_cameras_selected": "Selecciona al menos una cámara.",
       "cannot_remove_all_cameras": "No puedes quitar todas las cámaras desde aquí. Si quieres quitarlas todas, elimina esta entrada completa desde Dispositivos y servicios.",
+      "no_panels_found": "El feed de la DGT no devolvió ningún panel.",
+      "no_panels_selected": "Selecciona al menos un panel.",
+      "cannot_remove_all_panels": "No puedes quitar todos los paneles desde aquí. Si quieres quitarlos todos, elimina esta entrada completa desde Dispositivos y servicios.",
       "inventory_too_large": "El listado de la DGT es más grande de lo esperado y se ha descartado por seguridad."
     },
     "abort": {
       "no_roads_found": "No se encontraron carreteras para esa provincia.",
       "no_cameras_to_remove": "Esta entrada no tiene ninguna cámara guardada.",
-      "panel_options_not_available_yet": "Añadir o quitar paneles todavía no está disponible desde aquí. Para más paneles, añade una nueva integración; para quitar esta entrada entera, hazlo desde Dispositivos y servicios."
+      "no_panels_to_remove": "Esta entrada no tiene ningún panel guardado."
     }
   }
 }

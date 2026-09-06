@@ -342,16 +342,14 @@ class DgtTrafficCamerasConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class DgtTrafficCamerasOptionsFlow(config_entries.OptionsFlow):
-    """Permite añadir o quitar cámaras de una entrada ya existente.
+    """Permite añadir o quitar dispositivos de una entrada ya existente.
 
-    Para añadir, reutiliza el mismo flujo de 3 pasos que la configuración
-    inicial, pero al terminar fusiona las cámaras nuevas con las que ya
-    había, en vez de reemplazarlas. Para quitar, muestra directamente las
-    cámaras ya guardadas en esta entrada.
-
-    Las entradas de paneles todavía no tienen su Options flow propio (llega
-    en una fase posterior): de momento se limitan a un aviso claro en vez
-    de mostrar un menú de cámaras que no les corresponde.
+    Para añadir, reutiliza el mismo flujo de 2-3 pasos que la configuración
+    inicial (provincia -> carretera -> selección), pero al terminar fusiona
+    los dispositivos nuevos con los que ya había, en vez de reemplazarlos.
+    Para quitar, muestra directamente los que ya están guardados en esta
+    entrada. El menú inicial reparte entre el flujo de cámaras o el de
+    paneles según el tipo de la entrada (una entrada nunca mezcla ambos).
     """
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
@@ -362,6 +360,7 @@ class DgtTrafficCamerasOptionsFlow(config_entries.OptionsFlow):
         # (se traduce en un 500 al abrir el flujo de opciones). El framework
         # ya nos da acceso a self.config_entry sin que tengamos que guardarlo.
         self._all_cameras: list[DgtCamera] = []
+        self._all_panels: list[DgtPanelLocation] = []
         self._province: str | None = None
         self._road: str | None = None
 
@@ -369,7 +368,9 @@ class DgtTrafficCamerasOptionsFlow(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         if self.config_entry.data.get(CONF_DEVICE_TYPE) == DEVICE_TYPE_VMS:
-            return self.async_abort(reason="panel_options_not_available_yet")
+            return self.async_show_menu(
+                step_id="init", menu_options=["add_panels", "remove_panels"]
+            )
 
         return self.async_show_menu(
             step_id="init", menu_options=["add_cameras", "remove_cameras"]
@@ -517,6 +518,138 @@ class DgtTrafficCamerasOptionsFlow(config_entries.OptionsFlow):
             step_id="remove_cameras", data_schema=_remove_cameras_schema(existing)
         )
 
+    # --- Añadir/quitar paneles (PMV) -----------------------------------------
+
+    async def async_step_add_panels(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        return await self.async_step_panel_province(user_input)
+
+    async def async_step_panel_province(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        if not self._all_panels:
+            panels, error = await _get_vms_locations_or_error(self.hass)
+            if error:
+                return self.async_show_form(
+                    step_id="panel_province",
+                    data_schema=vol.Schema({}),
+                    errors={"base": error},
+                )
+            self._all_panels = panels
+
+        if user_input:
+            self._province = user_input["province"]
+            return await self.async_step_panel_road()
+
+        return self.async_show_form(
+            step_id="panel_province", data_schema=_province_schema(self._all_panels)
+        )
+
+    async def async_step_panel_road(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        if user_input is not None:
+            self._road = user_input["road"]
+            return await self.async_step_panels()
+
+        schema = _road_schema(self._all_panels, self._province)
+        if schema is None:
+            return self.async_abort(reason="no_roads_found")
+
+        return self.async_show_form(step_id="panel_road", data_schema=schema)
+
+    async def async_step_panels(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        candidates = [
+            p
+            for p in self._all_panels
+            if p.province == self._province and p.road_name == self._road
+        ]
+        candidates.sort(key=lambda p: _km_sort_key(p.kilometer_point))
+
+        if user_input is not None:
+            selected_ids = set(user_input["panel_ids"])
+            new_panels = [
+                _panel_to_dict(p) for p in candidates if p.device_id in selected_ids
+            ]
+            existing = list(self.config_entry.data.get(CONF_PANELS, []))
+            existing_ids = {p["device_id"] for p in existing}
+            realmente_nuevos = [
+                p for p in new_panels if p["device_id"] not in existing_ids
+            ]
+
+            if not realmente_nuevos:
+                # Mismo motivo que en cámaras: evitar una recarga (y con
+                # ella, una descarga de mensajes) para nada.
+                return self.async_create_entry(title="", data={})
+
+            merged = existing + realmente_nuevos
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, data={**self.config_entry.data, CONF_PANELS: merged}
+            )
+            return self.async_create_entry(title="", data={})
+
+        return self.async_show_form(
+            step_id="panels", data_schema=_panels_schema(candidates)
+        )
+
+    async def async_step_remove_panels(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Quita de esta entrada los paneles que el usuario marque.
+
+        Igual que remove_cameras: no hace falta descargar nada de la DGT,
+        los paneles candidatos son directamente los ya guardados en la
+        ConfigEntry.
+        """
+        existing = list(self.config_entry.data.get(CONF_PANELS, []))
+
+        if user_input is not None:
+            selected_ids = set(user_input["panel_ids"])
+            if not selected_ids:
+                return self.async_show_form(
+                    step_id="remove_panels",
+                    data_schema=_remove_panels_schema(existing),
+                    errors={"base": "no_panels_selected"},
+                )
+
+            remaining = [p for p in existing if p["device_id"] not in selected_ids]
+            if not remaining:
+                return self.async_show_form(
+                    step_id="remove_panels",
+                    data_schema=_remove_panels_schema(existing),
+                    errors={"base": "cannot_remove_all_panels"},
+                )
+
+            # Igual que con las cámaras: hay que borrar también la entidad
+            # del registro, si no se quedaría "huérfana" (no disponible en
+            # vez de desaparecer del todo). El dominio de plataforma de los
+            # paneles es "sensor", no "camera".
+            registry = er.async_get(self.hass)
+            for panel_data in existing:
+                device_id = panel_data.get("device_id")
+                if device_id not in selected_ids:
+                    continue
+                unique_id = f"{self.config_entry.entry_id}_{device_id}"
+                entity_id = registry.async_get_entity_id("sensor", DOMAIN, unique_id)
+                if entity_id:
+                    registry.async_remove(entity_id)
+
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                data={**self.config_entry.data, CONF_PANELS: remaining},
+            )
+            return self.async_create_entry(title="", data={})
+
+        if not existing:
+            return self.async_abort(reason="no_panels_to_remove")
+
+        return self.async_show_form(
+            step_id="remove_panels", data_schema=_remove_panels_schema(existing)
+        )
+
 
 def _remove_cameras_schema(cameras: list[dict[str, Any]]) -> vol.Schema:
     options = [
@@ -528,6 +661,24 @@ def _remove_cameras_schema(cameras: list[dict[str, Any]]) -> vol.Schema:
     return vol.Schema(
         {
             vol.Required("camera_ids"): SelectSelector(
+                SelectSelectorConfig(
+                    options=options,
+                    multiple=True,
+                    mode=SelectSelectorMode.LIST,
+                )
+            )
+        }
+    )
+
+
+def _remove_panels_schema(panels: list[dict[str, Any]]) -> vol.Schema:
+    options = [
+        SelectOptionDict(value=p["device_id"], label=p.get("name") or p["device_id"])
+        for p in panels
+    ]
+    return vol.Schema(
+        {
+            vol.Required("panel_ids"): SelectSelector(
                 SelectSelectorConfig(
                     options=options,
                     multiple=True,
