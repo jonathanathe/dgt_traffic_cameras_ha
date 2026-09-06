@@ -1,6 +1,6 @@
 # Cámaras de tráfico DGT para Home Assistant
 
-Integración personalizada que añade las cámaras de tráfico y los paneles de mensaje variable (PMV) de la Dirección General de Tráfico (DGT) a Home Assistant, con un selector guiado por provincia y carretera.
+Integración personalizada que añade las cámaras de tráfico de la Dirección General de Tráfico (DGT) como entidades `camera` en Home Assistant, con un selector guiado por provincia y carretera.
 
 > **Proyecto no oficial.** No está afiliado, patrocinado ni respaldado por la DGT. Únicamente consume datos publicados en abierto.
 
@@ -10,13 +10,11 @@ Integración personalizada que añade las cámaras de tráfico y los paneles de 
 
 ## Qué hace
 
-- Descarga los datos públicos de la DGT (formato DATEX II, sin necesidad de clave de API): inventario de cámaras y ubicación/mensajes de los paneles de mensaje variable.
-- Te deja elegir, en tres pasos (**provincia → carretera → dispositivos concretos**), tanto cámaras como paneles.
-- Crea una entidad `camera.*` por cada cámara, con su carretera, punto kilométrico, sentido y coordenadas como atributos.
-- Crea una entidad `sensor.*` por cada panel, con el mensaje que muestra ahora mismo como estado, y como atributos el texto completo, las líneas por separado, los pictogramas activos y si está apagado.
-- Opcionalmente, muestra cámaras y paneles como puntos en el mapa de Home Assistant (ver [Mostrar en el mapa](#mostrar-en-el-mapa)).
+- Descarga el inventario público de cámaras de la DGT (formato DATEX II, sin necesidad de clave de API).
+- Te deja elegir las cámaras en tres pasos: **provincia → carretera → cámaras concretas**.
+- Crea una entidad `camera.*` por cada cámara seleccionada, con su carretera, punto kilométrico, sentido y coordenadas como atributos.
 
-La DGT publica **instantáneas fijas** de las cámaras, no vídeo en directo. Cada foto se renueva unas pocas veces por hora en origen. Los mensajes de los paneles se comprueban cada 5 minutos.
+La DGT publica **instantáneas fijas**, no vídeo en directo. Cada foto se renueva unas pocas veces por hora en origen.
 
 ## Qué **no** hace
 
@@ -54,28 +52,6 @@ Cada combinación de provincia y carretera crea una entrada propia, que agrupa s
 Para añadir más cámaras de la misma carretera más adelante, o para quitar alguna que ya no quieras, usa el botón de **Opciones** (el engranaje) de esa entrada: te preguntará si quieres **Añadir cámaras** o **Quitar cámaras**. Para otra carretera distinta, añade una nueva entrada.
 
 Al quitar una cámara, su entidad se elimina por completo de Home Assistant (no se queda como "no disponible"). No se pueden quitar todas las cámaras de una entrada desde aquí: si quieres vaciarla del todo, elimina la entrada entera desde **Dispositivos y servicios**.
-
-### Paneles de mensaje variable
-
-Al añadir la integración, el primer paso pregunta si quieres **Cámaras de tráfico** o **Paneles de mensaje variable**. El resto del asistente (provincia → carretera → selección) funciona igual que con las cámaras, y también tiene su propio **Opciones** para añadir o quitar paneles de una entrada ya creada.
-
-Un panel puede no aparecer en la descarga de mensajes en un momento dado (no todos emiten siempre); en ese caso su entidad muestra "Sin datos" en vez de marcarse como no disponible.
-
-### Mostrar en el mapa
-
-Desde **Opciones** de cualquier entrada (de cámaras o de paneles) hay una tercera opción, **Mostrar en el mapa**, que activa un interruptor. Al activarlo, cada dispositivo de esa entrada aparece también como un punto en el panel de **Mapa** del menú lateral de Home Assistant (además de en cualquier tarjeta que ya tengas), con la distancia a tu ubicación "Casa" como su estado.
-
-**Sobre la etiqueta del pin:** por defecto, Home Assistant pone en cada pin las iniciales del nombre de la entidad (por ejemplo, "PA" para "Panel A-1"). Si prefieres ver directamente el mensaje del panel en el propio pin en vez de esas iniciales, hace falta una tarjeta de Mapa personalizada en un dashboard (esto no se puede aplicar al panel de Mapa por defecto del menú lateral, que no es configurable):
-
-```yaml
-type: map
-entities:
-  - entity: geo_location.panel_dgt_xxxxx
-    label_mode: attribute
-    attribute: mensaje
-```
-
-Ojo: es la entidad `geo_location.*` (la del punto en el mapa), no la `sensor.*` del panel — cada una expone sus propios atributos, y `mensaje` solo existe en la de `geo_location`, pensado exactamente para esto.
 
 ---
 

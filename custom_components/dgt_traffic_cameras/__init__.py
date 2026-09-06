@@ -45,17 +45,10 @@ def _platforms_for_entry(entry: ConfigEntry) -> list[str]:
 
     Una entrada creada por una versión anterior (solo había cámaras) no
     tiene CONF_DEVICE_TYPE guardado; se sigue tratando como cámara.
-
-    "geo_location" se reenvía SIEMPRE, tanto si el interruptor de mapa está
-    activado como si no: es la propia plataforma la que decide, al
-    arrancar, si crea entidades (ver geo_location.py). Si esta lista
-    dependiera del interruptor, activarlo/desactivarlo podría dejar el
-    registro de plataformas de HA inconsistente con lo que de verdad estaba
-    cargado la vez anterior.
     """
     if entry.data.get(CONF_DEVICE_TYPE) == DEVICE_TYPE_VMS:
-        return ["sensor", "geo_location"]
-    return ["camera", "geo_location"]
+        return ["sensor"]
+    return ["camera"]
 
 
 def _huella_entry(entry: ConfigEntry) -> tuple[str, ...]:

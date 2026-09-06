@@ -45,7 +45,6 @@ from .const import (
     CONF_CAMERAS,
     CONF_DEVICE_TYPE,
     CONF_PANELS,
-    CONF_SHOW_ON_MAP,
     DEVICE_TYPE_VMS,
     DOMAIN,
 )
@@ -370,44 +369,12 @@ class DgtTrafficCamerasOptionsFlow(config_entries.OptionsFlow):
     ) -> config_entries.ConfigFlowResult:
         if self.config_entry.data.get(CONF_DEVICE_TYPE) == DEVICE_TYPE_VMS:
             return self.async_show_menu(
-                step_id="init", menu_options=["add_panels", "remove_panels", "map"]
+                step_id="init", menu_options=["add_panels", "remove_panels"]
             )
 
         return self.async_show_menu(
-            step_id="init", menu_options=["add_cameras", "remove_cameras", "map"]
+            step_id="init", menu_options=["add_cameras", "remove_cameras"]
         )
-
-    async def async_step_map(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
-        """Activa o desactiva mostrar estos dispositivos en el mapa de HA.
-
-        Se guarda en entry.options (no en entry.data): es una preferencia
-        de visualización, no parte de "qué dispositivos tiene esta
-        entrada". async_update_entry dispara el listener de recarga igual
-        que al cambiar entry.data; _huella_entry (__init__.py) ya tiene en
-        cuenta esta opción desde la Fase 1, así que no hace falta tocar
-        nada más para que el cambio se aplique.
-        """
-        if user_input is not None:
-            self.hass.config_entries.async_update_entry(
-                self.config_entry,
-                options={
-                    **self.config_entry.options,
-                    CONF_SHOW_ON_MAP: user_input["show_on_map"],
-                },
-            )
-            return self.async_create_entry(title="", data={})
-
-        schema = vol.Schema(
-            {
-                vol.Required(
-                    "show_on_map",
-                    default=self.config_entry.options.get(CONF_SHOW_ON_MAP, False),
-                ): bool
-            }
-        )
-        return self.async_show_form(step_id="map", data_schema=schema)
 
     async def async_step_add_cameras(
         self, user_input: dict[str, Any] | None = None

@@ -70,15 +70,7 @@
           "add_cameras": "Añadir cámaras",
           "remove_cameras": "Quitar cámaras",
           "add_panels": "Añadir paneles",
-          "remove_panels": "Quitar paneles",
-          "map": "Mostrar en el mapa"
-        }
-      },
-      "map": {
-        "title": "Mostrar en el mapa",
-        "description": "Si lo activas, estos dispositivos aparecerán como puntos en el panel de Mapa de Home Assistant, además de en cualquier tarjeta que ya tengas.",
-        "data": {
-          "show_on_map": "Mostrar en el mapa"
+          "remove_panels": "Quitar paneles"
         }
       },
       "province": {
