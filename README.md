@@ -82,7 +82,7 @@ Al quitar un dispositivo, su entidad se elimina por completo de Home Assistant (
 
 ```yaml
 type: custom:dgt-panel-card
-entity: sensor.panel_dgt_xxxxx
+entity: sensor.dgt_pmv_xxxxx
 ```
 
 Si el panel no tiene ningún mensaje activo, la tarjeta muestra el cartel vacío con "Sin mensaje" en vez de inventarse contenido.
