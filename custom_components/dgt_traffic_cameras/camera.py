@@ -227,6 +227,8 @@ class DgtTrafficCamera(Camera):
                 self._registrar_fallo()
                 return self._cached_image
 
+            disponible_antes = self._cached_image is not None
+
             imagen = await self._async_descargar_imagen()
             if imagen is None:
                 # _async_descargar_imagen ya registró el fallo y el motivo.
@@ -236,6 +238,15 @@ class DgtTrafficCamera(Camera):
             self._cached_at = ahora
             if imagen is not _SIN_CAMBIOS:
                 self._cached_image = imagen
+
+            # Las entidades "camera" no se sondean solas (should_poll es
+            # False): si no avisamos aquí, Home Assistant nunca vuelve a
+            # mirar la propiedad "available", y la entidad se queda
+            # congelada en "No disponible" desde el arranque aunque ya
+            # tengamos una foto real guardada.
+            if not disponible_antes and self._cached_image is not None:
+                self.async_write_ha_state()
+
             return self._cached_image
 
     async def _async_descargar_imagen(self) -> bytes | None | object:
