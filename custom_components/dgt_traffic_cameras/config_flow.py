@@ -1,17 +1,19 @@
 """Config flow de 'Cámaras de tráfico DGT'.
 
-Con ~1420 cámaras en el feed nacional, no tiene sentido mostrar una lista
-plana: sería imposible de usar en un selector. Por eso el flujo se divide
-en 3 pasos que van acotando el conjunto:
+Con ~1900 cámaras y ~2500 paneles en los feeds nacionales, no tiene sentido
+mostrar una lista plana: sería imposible de usar en un selector. Por eso el
+flujo se divide en pasos que van acotando el conjunto:
 
+  0) elegir qué se quiere añadir: cámaras o paneles de mensaje variable (PMV)
   1) elegir provincia
   2) elegir carretera dentro de esa provincia
-  3) elegir, con casillas, las cámaras concretas de esa carretera
+  3) elegir, con casillas, los dispositivos concretos de esa carretera
 
 Cada entrada de configuración (ConfigEntry) representa "una tanda de
-cámaras añadidas". Si el usuario quiere cámaras de otra provincia o
-carretera más adelante, puede volver a ejecutar la integración desde
-Ajustes > Dispositivos y servicios > Añadir integración, o usar el
+dispositivos añadidos", TODOS del mismo tipo (cámaras o paneles): no se
+mezclan en una misma entrada. Si el usuario quiere más dispositivos de otra
+provincia o carretera más adelante, puede volver a ejecutar la integración
+desde Ajustes > Dispositivos y servicios > Añadir integración, o usar el
 "Options flow" para añadir más a una entrada ya existente.
 """
 
@@ -32,14 +34,26 @@ from homeassistant.helpers.selector import (
     SelectSelectorMode,
 )
 
-from .api import DgtCamera, InventoryTooLargeError, async_fetch_camera_inventory
-from .const import CONF_CAMERAS, DOMAIN
+from .api import (
+    DgtCamera,
+    DgtPanelLocation,
+    InventoryTooLargeError,
+    async_fetch_camera_inventory,
+    async_fetch_vms_locations,
+)
+from .const import (
+    CONF_CAMERAS,
+    CONF_DEVICE_TYPE,
+    CONF_PANELS,
+    DEVICE_TYPE_VMS,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def _get_inventory_or_error(hass) -> tuple[list[DgtCamera] | None, str | None]:
-    """Descarga el inventario y traduce cualquier fallo a una clave de error.
+    """Descarga el inventario de cámaras y traduce cualquier fallo a una clave de error.
 
     Devuelve (lista_de_camaras, None) si todo va bien, o (None, "clave_error")
     si algo falla, para que el paso del flujo pueda mostrar un mensaje
@@ -66,27 +80,102 @@ async def _get_inventory_or_error(hass) -> tuple[list[DgtCamera] | None, str | N
     return cameras, None
 
 
+async def _get_vms_locations_or_error(
+    hass,
+) -> tuple[list[DgtPanelLocation] | None, str | None]:
+    """Igual que _get_inventory_or_error, pero para ubicaciones de paneles."""
+    session = async_get_clientsession(hass)
+    try:
+        panels = await async_fetch_vms_locations(hass, session)
+    except TimeoutError:
+        return None, "timeout"
+    except InventoryTooLargeError:
+        _LOGGER.error("El fichero de ubicaciones de paneles superó el tamaño máximo permitido")
+        return None, "inventory_too_large"
+    except Exception:  # noqa: BLE001 - cualquier fallo de red/parseo cuenta como error genérico
+        _LOGGER.exception("Fallo al descargar/parsear las ubicaciones de paneles de la DGT")
+        return None, "cannot_connect"
+
+    if not panels:
+        return None, "no_panels_found"
+
+    return panels, None
+
+
+def _province_schema(items: list) -> vol.Schema:
+    """Desplegable de provincias, a partir de cualquier lista con .province."""
+    provinces = sorted({i.province for i in items if i.province})
+    return vol.Schema(
+        {
+            vol.Required("province"): SelectSelector(
+                SelectSelectorConfig(
+                    options=[SelectOptionDict(value=p, label=p.title()) for p in provinces],
+                    mode=SelectSelectorMode.DROPDOWN,
+                )
+            )
+        }
+    )
+
+
+def _road_schema(items: list, province: str) -> vol.Schema | None:
+    """Desplegable de carreteras de una provincia, o None si no hay ninguna."""
+    roads = sorted(
+        {i.road_name for i in items if i.province == province and i.road_name}
+    )
+    if not roads:
+        return None
+    return vol.Schema(
+        {
+            vol.Required("road"): SelectSelector(
+                SelectSelectorConfig(
+                    options=[SelectOptionDict(value=r, label=r) for r in roads],
+                    mode=SelectSelectorMode.DROPDOWN,
+                )
+            )
+        }
+    )
+
+
 class DgtTrafficCamerasConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Maneja la creación inicial de la integración."""
+    """Maneja la creación inicial de la integración (cámaras o paneles)."""
 
     VERSION = 1
 
     def __init__(self) -> None:
         self._all_cameras: list[DgtCamera] = []
+        self._all_panels: list[DgtPanelLocation] = []
         self._province: str | None = None
         self._road: str | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Primer paso: descargar el inventario y pedir la provincia."""
-        errors: dict[str, str] = {}
+        """Primer paso: elegir si se añaden cámaras o paneles de mensaje variable."""
+        return self.async_show_menu(
+            step_id="user", menu_options=["camera_type", "panel_type"]
+        )
 
+    async def async_step_camera_type(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        return await self.async_step_camera_province(user_input)
+
+    async def async_step_panel_type(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        return await self.async_step_panel_province(user_input)
+
+    # --- Flujo de cámaras ---------------------------------------------------
+
+    async def async_step_camera_province(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Descargar el inventario de cámaras y pedir la provincia."""
         if not self._all_cameras:
             cameras, error = await _get_inventory_or_error(self.hass)
             if error:
                 return self.async_show_form(
-                    step_id="user",
+                    step_id="camera_province",
                     data_schema=vol.Schema({}),
                     errors={"base": error},
                 )
@@ -99,59 +188,32 @@ class DgtTrafficCamerasConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # nadie ha elegido todavía y la interfaz daría un error 500.
         if user_input:
             self._province = user_input["province"]
-            return await self.async_step_road()
+            return await self.async_step_camera_road()
 
-        provinces = sorted(
-            {c.province for c in self._all_cameras if c.province}
+        return self.async_show_form(
+            step_id="camera_province", data_schema=_province_schema(self._all_cameras)
         )
-        schema = vol.Schema(
-            {
-                vol.Required("province"): SelectSelector(
-                    SelectSelectorConfig(
-                        options=[SelectOptionDict(value=p, label=p.title()) for p in provinces],
-                        mode=SelectSelectorMode.DROPDOWN,
-                    )
-                )
-            }
-        )
-        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
-    async def async_step_road(
+    async def async_step_camera_road(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Segundo paso: elegir la carretera dentro de la provincia elegida."""
+        """Elegir la carretera dentro de la provincia elegida."""
         if user_input is not None:
             self._road = user_input["road"]
             return await self.async_step_cameras()
 
-        roads = sorted(
-            {
-                c.road_name
-                for c in self._all_cameras
-                if c.province == self._province and c.road_name
-            }
-        )
-        if not roads:
+        schema = _road_schema(self._all_cameras, self._province)
+        if schema is None:
             # No debería pasar (la provincia salió de estos mismos datos),
             # pero si pasa, es mejor avisar que dejar un selector vacío.
             return self.async_abort(reason="no_roads_found")
 
-        schema = vol.Schema(
-            {
-                vol.Required("road"): SelectSelector(
-                    SelectSelectorConfig(
-                        options=[SelectOptionDict(value=r, label=r) for r in roads],
-                        mode=SelectSelectorMode.DROPDOWN,
-                    )
-                )
-            }
-        )
-        return self.async_show_form(step_id="road", data_schema=schema)
+        return self.async_show_form(step_id="camera_road", data_schema=schema)
 
     async def async_step_cameras(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Tercer paso: elegir, con casillas, las cámaras concretas."""
+        """Elegir, con casillas, las cámaras concretas."""
         candidates = [
             c
             for c in self._all_cameras
@@ -193,6 +255,84 @@ class DgtTrafficCamerasConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="cameras", data_schema=_cameras_schema(candidates)
         )
 
+    # --- Flujo de paneles (PMV) ----------------------------------------------
+
+    async def async_step_panel_province(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Descargar las ubicaciones de paneles y pedir la provincia."""
+        if not self._all_panels:
+            panels, error = await _get_vms_locations_or_error(self.hass)
+            if error:
+                return self.async_show_form(
+                    step_id="panel_province",
+                    data_schema=vol.Schema({}),
+                    errors={"base": error},
+                )
+            self._all_panels = panels
+
+        if user_input:
+            self._province = user_input["province"]
+            return await self.async_step_panel_road()
+
+        return self.async_show_form(
+            step_id="panel_province", data_schema=_province_schema(self._all_panels)
+        )
+
+    async def async_step_panel_road(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Elegir la carretera dentro de la provincia elegida."""
+        if user_input is not None:
+            self._road = user_input["road"]
+            return await self.async_step_panels()
+
+        schema = _road_schema(self._all_panels, self._province)
+        if schema is None:
+            return self.async_abort(reason="no_roads_found")
+
+        return self.async_show_form(step_id="panel_road", data_schema=schema)
+
+    async def async_step_panels(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Elegir, con casillas, los paneles concretos."""
+        candidates = [
+            p
+            for p in self._all_panels
+            if p.province == self._province and p.road_name == self._road
+        ]
+        candidates.sort(key=lambda p: _km_sort_key(p.kilometer_point))
+
+        if user_input is not None:
+            selected_ids = set(user_input["panel_ids"])
+            selected = [
+                _panel_to_dict(p) for p in candidates if p.device_id in selected_ids
+            ]
+            if not selected:
+                return self.async_show_form(
+                    step_id="panels",
+                    data_schema=_panels_schema(candidates),
+                    errors={"base": "no_panels_selected"},
+                )
+
+            # Prefijo "panel_" para que el identificador único nunca choque
+            # con el de una entrada de cámaras de la misma provincia y
+            # carretera (son tipos de dispositivo distintos, no deberían
+            # bloquearse mutuamente).
+            await self.async_set_unique_id(f"panel_{self._province}_{self._road}")
+            self._abort_if_unique_id_configured()
+
+            title = f"DGT PMV · {self._province.title()} · {self._road}"
+            return self.async_create_entry(
+                title=title,
+                data={CONF_DEVICE_TYPE: DEVICE_TYPE_VMS, CONF_PANELS: selected},
+            )
+
+        return self.async_show_form(
+            step_id="panels", data_schema=_panels_schema(candidates)
+        )
+
     @staticmethod
     @callback
     def async_get_options_flow(
@@ -208,6 +348,10 @@ class DgtTrafficCamerasOptionsFlow(config_entries.OptionsFlow):
     inicial, pero al terminar fusiona las cámaras nuevas con las que ya
     había, en vez de reemplazarlas. Para quitar, muestra directamente las
     cámaras ya guardadas en esta entrada.
+
+    Las entradas de paneles todavía no tienen su Options flow propio (llega
+    en una fase posterior): de momento se limitan a un aviso claro en vez
+    de mostrar un menú de cámaras que no les corresponde.
     """
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
@@ -224,6 +368,9 @@ class DgtTrafficCamerasOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
+        if self.config_entry.data.get(CONF_DEVICE_TYPE) == DEVICE_TYPE_VMS:
+            return self.async_abort(reason="panel_options_not_available_yet")
+
         return self.async_show_menu(
             step_id="init", menu_options=["add_cameras", "remove_cameras"]
         )
@@ -250,18 +397,9 @@ class DgtTrafficCamerasOptionsFlow(config_entries.OptionsFlow):
             self._province = user_input["province"]
             return await self.async_step_road()
 
-        provinces = sorted({c.province for c in self._all_cameras if c.province})
-        schema = vol.Schema(
-            {
-                vol.Required("province"): SelectSelector(
-                    SelectSelectorConfig(
-                        options=[SelectOptionDict(value=p, label=p.title()) for p in provinces],
-                        mode=SelectSelectorMode.DROPDOWN,
-                    )
-                )
-            }
+        return self.async_show_form(
+            step_id="province", data_schema=_province_schema(self._all_cameras)
         )
-        return self.async_show_form(step_id="province", data_schema=schema)
 
     async def async_step_road(
         self, user_input: dict[str, Any] | None = None
@@ -270,29 +408,13 @@ class DgtTrafficCamerasOptionsFlow(config_entries.OptionsFlow):
             self._road = user_input["road"]
             return await self.async_step_cameras()
 
-        roads = sorted(
-            {
-                c.road_name
-                for c in self._all_cameras
-                if c.province == self._province and c.road_name
-            }
-        )
-        if not roads:
+        schema = _road_schema(self._all_cameras, self._province)
+        if schema is None:
             # El flujo de configuración inicial ya tenía esta guardia, pero
             # al flujo de opciones se me olvidó ponérsela: sin ella se
             # mostraría un desplegable vacío del que no se puede salir.
             return self.async_abort(reason="no_roads_found")
 
-        schema = vol.Schema(
-            {
-                vol.Required("road"): SelectSelector(
-                    SelectSelectorConfig(
-                        options=[SelectOptionDict(value=r, label=r) for r in roads],
-                        mode=SelectSelectorMode.DROPDOWN,
-                    )
-                )
-            }
-        )
         return self.async_show_form(step_id="road", data_schema=schema)
 
     async def async_step_cameras(
@@ -433,6 +555,23 @@ def _cameras_schema(candidates: list[DgtCamera]) -> vol.Schema:
     )
 
 
+def _panels_schema(candidates: list[DgtPanelLocation]) -> vol.Schema:
+    options = [
+        SelectOptionDict(value=p.device_id, label=p.display_name) for p in candidates
+    ]
+    return vol.Schema(
+        {
+            vol.Required("panel_ids"): SelectSelector(
+                SelectSelectorConfig(
+                    options=options,
+                    multiple=True,
+                    mode=SelectSelectorMode.LIST,
+                )
+            )
+        }
+    )
+
+
 def _camera_to_dict(camera: DgtCamera) -> dict[str, Any]:
     """Serializa una DgtCamera a dict plano para guardarla en ConfigEntry.data.
 
@@ -450,6 +589,21 @@ def _camera_to_dict(camera: DgtCamera) -> dict[str, Any]:
         "latitude": camera.latitude,
         "longitude": camera.longitude,
         "image_url": camera.image_url,
+    }
+
+
+def _panel_to_dict(panel: DgtPanelLocation) -> dict[str, Any]:
+    """Serializa una DgtPanelLocation a dict plano, igual que _camera_to_dict."""
+    return {
+        "device_id": panel.device_id,
+        "name": panel.display_name,
+        "road_name": panel.road_name,
+        "road_destination": panel.road_destination,
+        "province": panel.province,
+        "kilometer_point": panel.kilometer_point,
+        "direction": panel.direction,
+        "latitude": panel.latitude,
+        "longitude": panel.longitude,
     }
 
 

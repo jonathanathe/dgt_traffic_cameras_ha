@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<d2:payload xsi:type="ns2:DevicePublication" lang="es" modelBaseVersion="3" profileName="ProfileDGT" profileVersion="1.0" xmlns:com="http://levelC/schema/3/common" xmlns:loc="http://levelC/schema/3/locationReferencing" xmlns:cse="http://levelC/schema/3/commonSpanishExtension" xmlns:fse="http://levelC/schema/3/faultAndStatusSpanishExtension" xmlns:ns2="http://levelC/schema/3/faultAndStatus" xmlns:d2="http://levelC/schema/3/d2Payload" xmlns:ns3="http://levelC/schema/3/locationExtension" xmlns:lse="http://levelC/schema/3/locationReferencingSpanishExtension" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <com:publicationTime>2026-09-06T19:05:01.469+02:00</com:publicationTime>
+    <ns2:device xsi:type="fse:ExtendedDevice" id="167938" version="3">
+        <ns2:typeOfDevice>vms</ns2:typeOfDevice>
+        <ns2:lastUpdateOfDeviceInformation>2026-06-08T09:11:25.000+02:00</ns2:lastUpdateOfDeviceInformation>
+        <ns2:pointLocation>
+            <loc:supplementaryPositionalDescription>
+                <loc:roadInformation>
+                    <loc:roadDestination>LUGO</loc:roadDestination>
+                    <loc:roadName>A-54</loc:roadName>
+                </loc:roadInformation>
+            </loc:supplementaryPositionalDescription>
+            <loc:tpegPointLocation xsi:type="loc:TpegSimplePoint">
+                <loc:tpegDirection>unknown</loc:tpegDirection>
+                <loc:tpegSimplePointLocationType>nonLinkedPoint</loc:tpegSimplePointLocationType>
+                <loc:point xsi:type="loc:TpegNonJunctionPoint">
+                    <loc:pointCoordinates>
+                        <loc:latitude>42.96447</loc:latitude>
+                        <loc:longitude>-7.5005</loc:longitude>
+                    </loc:pointCoordinates>
+                    <loc:_tpegNonJunctionPointExtension>
+                        <loc:extendedTpegNonJunctionPoint>
+                            <lse:kilometerPoint>0.65</lse:kilometerPoint>
+                            <lse:province>LUGO</lse:province>
+                        </loc:extendedTpegNonJunctionPoint>
+                    </loc:_tpegNonJunctionPointExtension>
+                </loc:point>
+                <loc:_tpegSimplePointExtension>
+                    <loc:extendedTpegSimplePoint>
+                        <lse:tpegDirectionRoad>negative</lse:tpegDirectionRoad>
+                    </loc:extendedTpegSimplePoint>
+                </loc:_tpegSimplePointExtension>
+            </loc:tpegPointLocation>
+        </ns2:pointLocation>
+    </ns2:device>
+    <ns2:device xsi:type="fse:ExtendedDevice" id="61441" version="4">
+        <ns2:typeOfDevice>vms</ns2:typeOfDevice>
+        <ns2:lastUpdateOfDeviceInformation>2024-10-28T18:25:32.000+01:00</ns2:lastUpdateOfDeviceInformation>
+        <ns2:pointLocation>
+            <loc:supplementaryPositionalDescription>
+                <loc:roadInformation>
+                    <loc:roadDestination>MADRID</loc:roadDestination>
+                    <loc:roadName>M-607</loc:roadName>
+                </loc:roadInformation>
+            </loc:supplementaryPositionalDescription>
+            <loc:tpegPointLocation xsi:type="loc:TpegSimplePoint">
+                <loc:tpegDirection>unknown</loc:tpegDirection>
+                <loc:tpegSimplePointLocationType>nonLinkedPoint</loc:tpegSimplePointLocationType>
+                <loc:point xsi:type="loc:TpegNonJunctionPoint">
+                    <loc:pointCoordinates>
+                        <loc:latitude>40.56056</loc:latitude>
+                        <loc:longitude>-3.713396</loc:longitude>
+                    </loc:pointCoordinates>
+                    <loc:_tpegNonJunctionPointExtension>
+                        <loc:extendedTpegNonJunctionPoint>
+                            <lse:kilometerPoint>18.532</lse:kilometerPoint>
+                            <lse:province>MADRID</lse:province>
+                        </loc:extendedTpegNonJunctionPoint>
+                    </loc:_tpegNonJunctionPointExtension>
+                </loc:point>
+                <loc:_tpegSimplePointExtension>
+                    <loc:extendedTpegSimplePoint>
+                        <lse:tpegDirectionRoad>negative</lse:tpegDirectionRoad>
+                    </loc:extendedTpegSimplePoint>
+                </loc:_tpegSimplePointExtension>
+            </loc:tpegPointLocation>
+        </ns2:pointLocation>
+    </ns2:device>
+    <ns2:device xsi:type="fse:ExtendedDevice" id="61459" version="6">
+        <ns2:typeOfDevice>vms</ns2:typeOfDevice>
+        <ns2:lastUpdateOfDeviceInformation>2025-12-18T16:40:13.000+01:00</ns2:lastUpdateOfDeviceInformation>
+        <ns2:pointLocation>
+            <loc:supplementaryPositionalDescription>
+                <loc:roadInformation>
+                    <loc:roadDestination>MADRID</loc:roadDestination>
+                    <loc:roadName>N-6</loc:roadName>
+                </loc:roadInformation>
+            </loc:supplementaryPositionalDescription>
+            <loc:tpegPointLocation xsi:type="loc:TpegSimplePoint">
+                <loc:tpegDirection>unknown</loc:tpegDirection>
+                <loc:tpegSimplePointLocationType>nonLinkedPoint</loc:tpegSimplePointLocationType>
+                <loc:point xsi:type="loc:TpegNonJunctionPoint">
+                    <loc:pointCoordinates>
+                        <loc:latitude>40.78636</loc:latitude>
+                        <loc:longitude>-4.428524</loc:longitude>
+                    </loc:pointCoordinates>
+                    <loc:_tpegNonJunctionPointExtension>
+                        <loc:extendedTpegNonJunctionPoint>
+                            <lse:kilometerPoint>85.0</lse:kilometerPoint>
+                            <lse:province>SEGOVIA</lse:province>
+                        </loc:extendedTpegNonJunctionPoint>
+                    </loc:_tpegNonJunctionPointExtension>
+                </loc:point>
+                <loc:_tpegSimplePointExtension>
+                    <loc:extendedTpegSimplePoint>
+                        <lse:tpegDirectionRoad>negative</lse:tpegDirectionRoad>
+                    </loc:extendedTpegSimplePoint>
+                </loc:_tpegSimplePointExtension>
+            </loc:tpegPointLocation>
+        </ns2:pointLocation>
+    </ns2:device>
+    <ns2:device xsi:type="fse:ExtendedDevice" id="168606" version="7">
+        <ns2:typeOfDevice>vms</ns2:typeOfDevice>
+        <ns2:lastUpdateOfDeviceInformation>2026-08-11T13:17:41.000+02:00</ns2:lastUpdateOfDeviceInformation>
+        <ns2:pointLocation>
+            <loc:supplementaryPositionalDescription>
+                <loc:roadInformation>
+                    <loc:roadDestination>Formentor</loc:roadDestination>
+                    <loc:roadName>Ma-2210</loc:roadName>
+                </loc:roadInformation>
+            </loc:supplementaryPositionalDescription>
+            <loc:tpegPointLocation xsi:type="loc:TpegSimplePoint">
+                <loc:tpegDirection>unknown</loc:tpegDirection>
+                <loc:tpegSimplePointLocationType>nonLinkedPoint</loc:tpegSimplePointLocationType>
+                <loc:point xsi:type="loc:TpegNonJunctionPoint">
+                    <loc:pointCoordinates>
+                        <loc:latitude>39.912697</loc:latitude>
+                        <loc:longitude>3.099738</loc:longitude>
+                    </loc:pointCoordinates>
+                    <loc:_tpegNonJunctionPointExtension>
+                        <loc:extendedTpegNonJunctionPoint>
+                            <lse:kilometerPoint>2.0</lse:kilometerPoint>
+                            <lse:province>BALEARS, ILLES</lse:province>
+                        </loc:extendedTpegNonJunctionPoint>
+                    </loc:_tpegNonJunctionPointExtension>
+                </loc:point>
+                <loc:_tpegSimplePointExtension>
+                    <loc:extendedTpegSimplePoint>
+                        <lse:tpegDirectionRoad>positive</lse:tpegDirectionRoad>
+                    </loc:extendedTpegSimplePoint>
+                </loc:_tpegSimplePointExtension>
+            </loc:tpegPointLocation>
+        </ns2:pointLocation>
+    </ns2:device>
+</d2:payload>

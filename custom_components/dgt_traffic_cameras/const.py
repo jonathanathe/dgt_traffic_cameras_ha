@@ -28,6 +28,32 @@ CAMERA_INVENTORY_URL = (
     "https://nap.dgt.es/datex2/v3/dgt/DevicePublication/camaras_datex2_v37.xml"
 )
 
+# Ubicación de los paneles de mensaje variable (PMV): carretera, provincia,
+# punto kilométrico, coordenadas... Cambia poco (se cachea ~1 día). Mismo
+# esquema DevicePublication que las cámaras, solo que aquí typeOfDevice=vms
+# y no hay URL de imagen.
+#
+# Verificado manualmente el 2026-09-06 con una descarga real: 2517
+# dispositivos, todos con typeOfDevice=vms, punto kilométrico ya en km.
+#
+# OJO: existe un dataset antiguo (infocar.dgt.es/.../paneles/content.xml,
+# DATEX2 anterior) marcado "A EXTINGUIR 30/09/2026" en nap.dgt.es. Esta URL
+# es la del dataset NUEVO en DATEX2 v3.7, no la antigua.
+VMS_LOCATIONS_URL = (
+    "https://nap.dgt.es/datex2/v3/dgt/DevicePublication/vms_datex2_v37.xml"
+)
+
+# Mensajes actuales de cada panel (qué está mostrando ahora mismo). Cambia
+# cada pocos minutos; la propia DGT lo actualiza cada 1 minuto.
+#
+# Verificado manualmente el 2026-09-06: 2471 controladores, el 100% de sus
+# id casan con dispositivos de VMS_LOCATIONS_URL (el enlace entre ambos
+# ficheros es ese id numérico simple, NO un GUID).
+#
+# OJO: la ruta es "VmsPublication" (sin "c" extra). Una variante con "c"
+# de más ("VmsPublicaction") existe en algún sitio pero da 404 real.
+VMS_MESSAGES_URL = "https://nap.dgt.es/datex2/v3/dgt/VmsPublication/datex2_v37.xml"
+
 # Dominios desde los que aceptamos descargar imágenes de cámara.
 #
 # POR QUÉ ESTO EXISTE (seguridad): la URL de cada imagen no la elegimos
@@ -53,11 +79,31 @@ XML_NAMESPACES = {
     "ns2": "http://levelC/schema/3/faultAndStatus",
     "lse": "http://levelC/schema/3/locationReferencingSpanishExtension",
     "fse": "http://levelC/schema/3/faultAndStatusSpanishExtension",
+    # Espacio de nombres propio del fichero de MENSAJES de paneles
+    # (VmsPublication). Es un esquema distinto del de cámaras/ubicaciones
+    # (ns2/loc/lse/fse), no una extensión de ese.
+    "vms": "http://levelC/schema/3/vms",
 }
 
 # Clave usada dentro de config_entry.data para guardar la lista de cámaras
 # que el usuario ha seleccionado.
 CONF_CAMERAS = "cameras"
+
+# Clave equivalente para la lista de paneles seleccionados.
+CONF_PANELS = "panels"
+
+# Clave usada dentro de config_entry.data para guardar de qué tipo es una
+# entrada: "camera" o "vms". Las entradas creadas por versiones anteriores
+# (solo había cámaras) no tienen esta clave; en TODO el código se debe leer
+# siempre con .get(CONF_DEVICE_TYPE, DEVICE_TYPE_CAMERA), nunca con [...]
+# directo, para que sigan tratándose como cámaras sin tocar nada.
+CONF_DEVICE_TYPE = "device_type"
+DEVICE_TYPE_CAMERA = "camera"
+DEVICE_TYPE_VMS = "vms"
+
+# Clave usada dentro de config_entry.OPTIONS (no .data) para el interruptor
+# de "mostrar en el mapa" de Home Assistant.
+CONF_SHOW_ON_MAP = "show_on_map"
 
 # ---------------------------------------------------------------------------
 # Control de frecuencia de peticiones (lo importante para no ser bloqueados)
@@ -107,11 +153,26 @@ INVENTORY_TIMEOUT_SECONDS = 60
 # por manipulación) se cargaría entera en la RAM de tu Home Assistant.
 MAX_IMAGE_BYTES = 15 * 1024 * 1024  # 15 MB: muy por encima de una foto normal
 MAX_INVENTORY_BYTES = 100 * 1024 * 1024  # 100 MB: margen amplio para el XML
+# El fichero real de ubicaciones de paneles pesa ~4,5 MB; el de mensajes,
+# ~4 MB. Mismo margen amplio que el inventario de cámaras.
+MAX_VMS_LOCATIONS_BYTES = 100 * 1024 * 1024
+MAX_VMS_MESSAGES_BYTES = 100 * 1024 * 1024
 
 # Cuánto tiempo reutilizamos el inventario ya descargado en lugar de volver
 # a bajarlo. Evita re-descargar varios MB cada vez que abres el diálogo de
 # configuración o el de opciones.
 INVENTORY_CACHE_SECONDS = 900  # 15 minutos
+
+# Las ubicaciones de los paneles cambian muy poco (solo si se instala,
+# retira o traslada un panel físico), así que se cachean casi un día
+# entero en lugar de los 15 minutos del inventario de cámaras.
+VMS_LOCATIONS_CACHE_SECONDS = 86400  # 24 horas
+
+# Cada cuánto se vuelve a descargar el fichero de MENSAJES (lo que muestra
+# cada panel ahora mismo). La propia DGT lo actualiza cada 1 minuto, pero
+# un único fichero sirve para TODOS los paneles configurados: 5 minutos es
+# un buen equilibrio entre frescura y no descargar 4 MB sin necesidad.
+VMS_MESSAGES_UPDATE_INTERVAL_SECONDS = 300  # 5 minutos
 
 # ---------------------------------------------------------------------------
 # Cabeceras HTTP

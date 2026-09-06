@@ -2,8 +2,18 @@
 
 Responsabilidades de este módulo:
   - descargar el inventario XML de cámaras (con límite de tamaño y caché),
-  - convertir ese XML en objetos Python manejables,
+  - descargar la ubicación de los paneles de mensaje variable (PMV),
+  - convertir esos XML en objetos Python manejables,
   - validar que las URLs de imagen apuntan de verdad a la DGT.
+
+Cámaras y paneles comparten el mismo esquema DevicePublication de la DGT
+para su UBICACIÓN (carretera, provincia, punto kilométrico, coordenadas...);
+solo difieren en typeOfDevice y en que las cámaras además traen una URL de
+imagen. Por eso DgtCamera y DgtPanelLocation comparten la clase base
+DgtLocatedDevice, y ambos parseos comparten _parse_located_device_fields.
+
+Los MENSAJES de los paneles (qué muestra cada uno ahora mismo) son un feed
+totalmente distinto, con su propio esquema; ver vms_messages.py.
 """
 
 from __future__ import annotations
@@ -25,6 +35,9 @@ from .const import (
     INVENTORY_HEADERS,
     INVENTORY_TIMEOUT_SECONDS,
     MAX_INVENTORY_BYTES,
+    MAX_VMS_LOCATIONS_BYTES,
+    VMS_LOCATIONS_CACHE_SECONDS,
+    VMS_LOCATIONS_URL,
     XML_NAMESPACES,
 )
 
@@ -36,8 +49,13 @@ class InventoryTooLargeError(Exception):
 
 
 @dataclass
-class DgtCamera:
-    """Representa una cámara tal y como la describe el feed de la DGT."""
+class DgtLocatedDevice:
+    """Campos de ubicación comunes a cualquier dispositivo de la DGT.
+
+    Cámaras y paneles se describen, en el feed de ubicaciones, con
+    exactamente esta misma información; solo cambia qué más añade cada uno
+    (la cámara, una URL de imagen) y qué se hace con ellos después.
+    """
 
     device_id: str
     road_name: str | None  # p.ej. "A-62"
@@ -47,7 +65,6 @@ class DgtCamera:
     direction: str | None  # "positive" / "negative" / "unknown"
     latitude: float | None
     longitude: float | None
-    image_url: str
 
     @property
     def display_name(self) -> str:
@@ -60,10 +77,26 @@ class DgtCamera:
             )
             if p
         ]
-        base = " ".join(parts) if parts else f"Cámara {self.device_id}"
+        base = " ".join(parts) if parts else f"Dispositivo {self.device_id}"
         if self.road_destination:
             base += f" (sent. {self.road_destination})"
         return base
+
+
+@dataclass
+class DgtCamera(DgtLocatedDevice):
+    """Representa una cámara tal y como la describe el feed de la DGT."""
+
+    image_url: str = ""
+
+
+@dataclass
+class DgtPanelLocation(DgtLocatedDevice):
+    """Representa la ubicación de un panel de mensaje variable (PMV).
+
+    Solo la ubicación: qué está mostrando el panel ahora mismo viene de un
+    feed totalmente distinto (ver vms_messages.py), enlazado por device_id.
+    """
 
 
 def is_allowed_image_url(url: str) -> bool:
@@ -164,21 +197,31 @@ async def async_fetch_camera_inventory(
         return cameras
 
 
-async def _async_download_inventory(session: aiohttp.ClientSession) -> bytes:
-    """Descarga el XML del inventario respetando un límite de tamaño."""
-    async with asyncio.timeout(INVENTORY_TIMEOUT_SECONDS):
-        async with session.get(
-            CAMERA_INVENTORY_URL, headers=INVENTORY_HEADERS
-        ) as response:
+async def async_download_xml(
+    session: aiohttp.ClientSession,
+    url: str,
+    *,
+    headers: dict[str, str],
+    timeout_seconds: float,
+    max_bytes: int,
+) -> bytes:
+    """Descarga un XML respetando un límite de tamaño.
+
+    Genérica a propósito: la usan el inventario de cámaras, las ubicaciones
+    de paneles y los mensajes de paneles, que solo difieren en la URL, las
+    cabeceras y los límites a aplicar.
+    """
+    async with asyncio.timeout(timeout_seconds):
+        async with session.get(url, headers=headers) as response:
             response.raise_for_status()
 
             # Si el servidor nos anuncia de antemano un tamaño desmesurado,
             # cortamos antes de descargar nada.
             declarado = response.content_length
-            if declarado is not None and declarado > MAX_INVENTORY_BYTES:
+            if declarado is not None and declarado > max_bytes:
                 raise InventoryTooLargeError(
-                    f"El inventario declara {declarado} bytes, "
-                    f"por encima del límite de {MAX_INVENTORY_BYTES}"
+                    f"{url} declara {declarado} bytes, "
+                    f"por encima del límite de {max_bytes}"
                 )
 
             # Leemos por trozos para poder abortar a mitad si el servidor
@@ -187,13 +230,60 @@ async def _async_download_inventory(session: aiohttp.ClientSession) -> bytes:
             total = 0
             async for trozo in response.content.iter_chunked(64 * 1024):
                 total += len(trozo)
-                if total > MAX_INVENTORY_BYTES:
+                if total > max_bytes:
                     raise InventoryTooLargeError(
-                        f"El inventario superó el límite de {MAX_INVENTORY_BYTES} bytes"
+                        f"{url} superó el límite de {max_bytes} bytes"
                     )
                 trozos.append(trozo)
 
             return b"".join(trozos)
+
+
+async def _async_download_inventory(session: aiohttp.ClientSession) -> bytes:
+    """Descarga el XML del inventario de cámaras."""
+    return await async_download_xml(
+        session,
+        CAMERA_INVENTORY_URL,
+        headers=INVENTORY_HEADERS,
+        timeout_seconds=INVENTORY_TIMEOUT_SECONDS,
+        max_bytes=MAX_INVENTORY_BYTES,
+    )
+
+
+def _parse_located_device_fields(
+    device: ET.Element, ns: dict[str, str]
+) -> dict[str, str | float | None]:
+    """Extrae los campos de ubicación comunes a cámaras y paneles.
+
+    Ambos comparten exactamente esta parte del esquema DevicePublication de
+    la DGT (carretera, provincia, punto kilométrico, sentido, coordenadas);
+    lo único que cambia entre uno y otro es qué se hace con este dict
+    después (una cámara añade su URL de imagen, un panel no añade nada más).
+    """
+    road_info = device.find(f".//{{{ns['loc']}}}roadInformation")
+    road_name = _find_text(road_info, f"{{{ns['loc']}}}roadName")
+    road_destination = _find_text(road_info, f"{{{ns['loc']}}}roadDestination")
+
+    ext_point = device.find(f".//{{{ns['loc']}}}extendedTpegNonJunctionPoint")
+    province = _find_text(ext_point, f"{{{ns['lse']}}}province")
+    km_point = _find_text(ext_point, f"{{{ns['lse']}}}kilometerPoint")
+
+    direction = _find_text(device, f".//{{{ns['lse']}}}tpegDirectionRoad")
+
+    lat_el = device.find(f".//{{{ns['loc']}}}latitude")
+    lon_el = device.find(f".//{{{ns['loc']}}}longitude")
+    latitude = _safe_float(lat_el.text if lat_el is not None else None)
+    longitude = _safe_float(lon_el.text if lon_el is not None else None)
+
+    return {
+        "road_name": road_name,
+        "road_destination": road_destination,
+        "province": province,
+        "kilometer_point": km_point,
+        "direction": direction,
+        "latitude": latitude,
+        "longitude": longitude,
+    }
 
 
 def _parse_camera_inventory(xml_bytes: bytes) -> list[DgtCamera]:
@@ -227,34 +317,8 @@ def _parse_camera_inventory(xml_bytes: bytes) -> list[DgtCamera]:
             descartadas_por_url += 1
             continue
 
-        road_info = device.find(f".//{{{ns['loc']}}}roadInformation")
-        road_name = _find_text(road_info, f"{{{ns['loc']}}}roadName")
-        road_destination = _find_text(road_info, f"{{{ns['loc']}}}roadDestination")
-
-        ext_point = device.find(f".//{{{ns['loc']}}}extendedTpegNonJunctionPoint")
-        province = _find_text(ext_point, f"{{{ns['lse']}}}province")
-        km_point = _find_text(ext_point, f"{{{ns['lse']}}}kilometerPoint")
-
-        direction = _find_text(device, f".//{{{ns['lse']}}}tpegDirectionRoad")
-
-        lat_el = device.find(f".//{{{ns['loc']}}}latitude")
-        lon_el = device.find(f".//{{{ns['loc']}}}longitude")
-        latitude = _safe_float(lat_el.text if lat_el is not None else None)
-        longitude = _safe_float(lon_el.text if lon_el is not None else None)
-
-        cameras.append(
-            DgtCamera(
-                device_id=device_id,
-                road_name=road_name,
-                road_destination=road_destination,
-                province=province,
-                kilometer_point=km_point,
-                direction=direction,
-                latitude=latitude,
-                longitude=longitude,
-                image_url=image_url,
-            )
-        )
+        campos = _parse_located_device_fields(device, ns)
+        cameras.append(DgtCamera(device_id=device_id, image_url=image_url, **campos))
 
     if descartadas_por_url:
         _LOGGER.warning(
@@ -265,6 +329,90 @@ def _parse_camera_inventory(xml_bytes: bytes) -> list[DgtCamera]:
 
     _LOGGER.debug("Inventario DGT: %d cámaras parseadas", len(cameras))
     return cameras
+
+
+# --- Caché de las ubicaciones de paneles (PMV) ------------------------------
+#
+# Igual que el inventario de cámaras, pero con su propia caché en memoria
+# (variables separadas) y un TTL mucho más largo (~1 día en vez de 15
+# minutos), porque la ubicación física de un panel casi nunca cambia.
+_vms_locations_cache: list[DgtPanelLocation] | None = None
+_vms_locations_cached_at: float = 0.0
+_vms_locations_lock = asyncio.Lock()
+
+
+def clear_vms_locations_cache() -> None:
+    """Vacía las ubicaciones de paneles guardadas en memoria."""
+    global _vms_locations_cache, _vms_locations_cached_at
+    _vms_locations_cache = None
+    _vms_locations_cached_at = 0.0
+    _LOGGER.debug("Caché de ubicaciones de paneles DGT vaciada")
+
+
+async def async_fetch_vms_locations(
+    hass: HomeAssistant,
+    session: aiohttp.ClientSession,
+    force_refresh: bool = False,
+) -> list[DgtPanelLocation]:
+    """Devuelve la ubicación de los paneles, descargándola solo si hace falta."""
+    global _vms_locations_cache, _vms_locations_cached_at
+
+    async with _vms_locations_lock:
+        ahora = time.monotonic()
+        cache_valido = (
+            _vms_locations_cache is not None
+            and (ahora - _vms_locations_cached_at) < VMS_LOCATIONS_CACHE_SECONDS
+        )
+        if cache_valido and not force_refresh:
+            _LOGGER.debug(
+                "Ubicaciones de paneles servidas desde caché (%d paneles)",
+                len(_vms_locations_cache),
+            )
+            return _vms_locations_cache
+
+        xml_bytes = await async_download_xml(
+            session,
+            VMS_LOCATIONS_URL,
+            headers=INVENTORY_HEADERS,
+            timeout_seconds=INVENTORY_TIMEOUT_SECONDS,
+            max_bytes=MAX_VMS_LOCATIONS_BYTES,
+        )
+
+        panels = await hass.async_add_executor_job(_parse_vms_locations, xml_bytes)
+
+        _vms_locations_cache = panels
+        _vms_locations_cached_at = ahora
+        return panels
+
+
+def _parse_vms_locations(xml_bytes: bytes) -> list[DgtPanelLocation]:
+    """Convierte el XML de ubicaciones de paneles en una lista de DgtPanelLocation.
+
+    NOTA: síncrona a propósito, pensada para ejecutarse en un hilo aparte
+    (ver async_fetch_vms_locations).
+    """
+    root = ET.fromstring(xml_bytes)
+    ns = XML_NAMESPACES
+
+    panels: list[DgtPanelLocation] = []
+
+    for device in root.iter(f"{{{ns['ns2']}}}device"):
+        device_id = device.get("id")
+        if not device_id:
+            continue
+
+        # El fichero real solo trae paneles (comprobado: 2517/2517 con
+        # typeOfDevice=vms), pero se filtra igualmente por si algún día
+        # mezclara otros tipos de dispositivo.
+        tipo_el = device.find(f"{{{ns['ns2']}}}typeOfDevice")
+        if tipo_el is None or (tipo_el.text or "").strip() != "vms":
+            continue
+
+        campos = _parse_located_device_fields(device, ns)
+        panels.append(DgtPanelLocation(device_id=device_id, **campos))
+
+    _LOGGER.debug("Ubicaciones de paneles DGT: %d paneles parseados", len(panels))
+    return panels
 
 
 def _find_text(element: ET.Element | None, path: str) -> str | None:
