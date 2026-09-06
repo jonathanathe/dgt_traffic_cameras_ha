@@ -90,6 +90,28 @@ async def async_get_or_create(hass: HomeAssistant, entry_id: str) -> DgtVmsMessa
         coordinator = DgtVmsMessagesCoordinator(hass)
         domain_data[_DATA_COORDINATOR] = coordinator
 
+        # Este refresco debe hacerse AQUÍ, solo la primera vez que se crea
+        # el coordinador de verdad, y nunca más.
+        #
+        # POR QUÉ: async_config_entry_first_refresh() comprueba que LA
+        # ENTRADA ACTUAL esté en estado SETUP_IN_PROGRESS, y ata el
+        # coordinador a esa entrada concreta para el resto de su vida. Como
+        # el coordinador es un singleton compartido por todas las entradas
+        # de paneles, si se volviera a llamar aquí al añadir una SEGUNDA
+        # entrada, comprobaría el estado de la PRIMERA entrada (que para
+        # entonces ya está LOADED, no SETUP_IN_PROGRESS) y HA lo rechaza
+        # con un ConfigEntryError. Esto pasó de verdad al añadir una
+        # segunda entrada de paneles: "async_config_entry_first_refresh
+        # called when config entry state is ConfigEntryState.LOADED".
+        await coordinator.async_config_entry_first_refresh()
+    elif not coordinator.data:
+        # El coordinador ya existía (otra entrada de paneles lo creó antes)
+        # pero todavía no tiene datos (la primera descarga puede tardar
+        # unos segundos). async_refresh() no comprueba el estado de
+        # ninguna ConfigEntry ni falla el setup si la descarga falla: es
+        # seguro llamarlo para cualquier entrada, no solo la primera.
+        await coordinator.async_refresh()
+
     return coordinator
 
 

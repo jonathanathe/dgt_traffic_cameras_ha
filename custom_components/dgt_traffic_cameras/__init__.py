@@ -81,12 +81,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if es_panel:
         # El coordinador es compartido por todas las entradas de paneles:
         # una sola descarga de ~4 MB sirve para todas, en vez de una por
-        # entrada. Su primer refresco se hace AQUÍ, antes de reenviar a la
-        # plataforma sensor: hacerlo dentro de la propia plataforma lanza
-        # un ConfigEntryError ("raised in forwarded platform") en Home
-        # Assistant.
+        # entrada. async_get_or_create ya se encarga de hacer el primer
+        # refresco (solo la primera vez de verdad; ver coordinator.py) ANTES
+        # de devolver el coordinador: hacerlo dentro de la propia plataforma
+        # sensor lanzaría un ConfigEntryError ("raised in forwarded
+        # platform") en Home Assistant.
         coordinator = await vms_coordinator.async_get_or_create(hass, entry.entry_id)
-        await coordinator.async_config_entry_first_refresh()
         hass.data[DOMAIN].setdefault("vms_coordinator_by_entry", {})[entry.entry_id] = (
             coordinator
         )
