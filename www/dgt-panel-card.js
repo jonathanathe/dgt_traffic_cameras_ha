@@ -27,12 +27,25 @@ const URL_ICONO_CABECERA =
 const URL_FONDO_CARTEL =
   "https://etraffic.dgt.es/estaticosEtraffic/Iconografia/iconografiaGeneral/panel_cms.png";
 
+// Datos de mentira para cuando la tarjeta se muestra sin una entidad
+// configurada (por ejemplo, en la vista previa del selector de tarjetas
+// de Lovelace), para que se vea un ejemplo real en vez de un error.
+const DATOS_DEMO = {
+  carretera: "Ma-19",
+  punto_kilometrico: "8.92",
+  sentido_hacia: "Llucmajor",
+  entity_picture:
+    "https://etraffic.dgt.es/estaticosEtraffic/Iconografia/pictogramas/XE90a.png",
+  lineas: ["S.NOGUERA  9m", "LLUCMAJOR 10m", "CAMPOS   16m"],
+};
+
 class DgtPanelCard extends HTMLElement {
   setConfig(config) {
-    if (!config || !config.entity) {
-      throw new Error('Falta "entity": indica la entidad sensor.* del panel');
-    }
-    this._config = config;
+    // No hace falta "entity" para poder configurarse: sin ella, la
+    // tarjeta se muestra con datos de ejemplo (ver DATOS_DEMO) en vez de
+    // dar un error. Esto es lo que permite que el selector de tarjetas de
+    // Lovelace pueda mostrar una vista previa en vivo antes de elegirla.
+    this._config = config || {};
     this._construida = false;
   }
 
@@ -44,8 +57,16 @@ class DgtPanelCard extends HTMLElement {
     return null;
   }
 
-  static getStubConfig() {
-    return { entity: "" };
+  static getStubConfig(hass, entities) {
+    // Si el usuario ya tiene algún panel configurado, se usa uno real de
+    // verdad para la vista previa (se detecta por tener el atributo
+    // "punto_kilometrico", propio de esta integración). Si no hay
+    // ninguno todavía, se deja sin entidad: la tarjeta usará DATOS_DEMO.
+    const candidato = (entities || []).find((entityId) => {
+      const estado = hass && hass.states && hass.states[entityId];
+      return Boolean(estado && estado.attributes && "punto_kilometrico" in estado.attributes);
+    });
+    return { entity: candidato || "" };
   }
 
   set hass(hass) {
@@ -142,14 +163,20 @@ class DgtPanelCard extends HTMLElement {
 
   _actualizar() {
     const entityId = this._config.entity;
-    const estado = this._hass.states[entityId];
 
-    if (!estado) {
-      this._elTexto.textContent = `Entidad no encontrada: ${entityId}`;
-      return;
+    let atributos;
+    if (!entityId) {
+      // Sin entidad configurada: vista previa con datos de ejemplo (esto
+      // es lo que se ve en el selector de tarjetas de Lovelace).
+      atributos = DATOS_DEMO;
+    } else {
+      const estado = this._hass.states[entityId];
+      if (!estado) {
+        this._elTexto.textContent = `Entidad no encontrada: ${entityId}`;
+        return;
+      }
+      atributos = estado.attributes || {};
     }
-
-    const atributos = estado.attributes || {};
 
     // textContent en todos los campos que vienen del feed: nunca HTML.
     this._elCarretera.textContent = atributos.carretera || "?";
