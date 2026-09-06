@@ -11,6 +11,9 @@ __pycache__/
 build/
 develop-eggs/
 dist/
+# Excepción: dist/dgt-panel-card.js SÍ se versiona a propósito (es donde
+# HACS espera encontrar el plugin de Lovelace, ver hacs.json).
+!dist/dgt-panel-card.js
 downloads/
 eggs/
 .eggs/
