@@ -13,7 +13,7 @@ Integración personalizada que añade las cámaras de tráfico y los paneles de 
 - Descarga los datos públicos de la DGT (formato DATEX II, sin necesidad de clave de API): el inventario de cámaras y, por separado, la ubicación y los mensajes de los paneles de mensaje variable (PMV).
 - Te deja elegir, en el mismo asistente guiado, entre **cámaras** o **paneles**, y dentro de cada tipo en tres pasos: **provincia → carretera → dispositivos concretos**.
 - Crea una entidad `camera.*` por cada cámara seleccionada, con su carretera, punto kilométrico, sentido y coordenadas como atributos.
-- Crea una entidad `sensor.*` por cada panel seleccionado, con el mensaje que está mostrando ahora mismo como estado, y como atributos el texto completo, sus líneas por separado, los pictogramas activos, si está apagado y la hora del último cambio.
+- Crea una entidad `sensor.*` por cada panel seleccionado, con el mensaje que está mostrando ahora mismo como estado, y como atributos el texto completo, sus líneas por separado, los pictogramas activos, si está apagado y la hora del último cambio. Si el panel tiene un pictograma activo (velocidad controlada, obras, etc.), la entidad muestra el icono real de la DGT para ese pictograma en vez de un icono genérico.
 - Deja añadir o quitar dispositivos de una entrada ya creada desde **Opciones**, sin tener que volver a montarla desde cero.
 
 La DGT publica **instantáneas fijas** de las cámaras, no vídeo en directo: cada foto se renueva unas pocas veces por hora en origen. Los mensajes de los paneles se comprueban cada 5 minutos con una única descarga compartida por todos los paneles configurados, tengas 1 o 100.

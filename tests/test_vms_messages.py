@@ -41,7 +41,50 @@ class TestParseVmsMessages(unittest.TestCase):
         self.assertEqual(estado.lines, ["VELOCIDAD", "CONTROLADA", "POR RADAR"])
         self.assertEqual(estado.text, "VELOCIDAD / CONTROLADA / POR RADAR")
         self.assertEqual(set(estado.pictogram_codes), {"R301100I", "E17"})
+        self.assertEqual(
+            set(estado.pictogram_urls),
+            {
+                "https://etraffic.dgt.es/estaticosEtraffic/Iconografia/pictogramas/R301100I.png",
+                "https://etraffic.dgt.es/estaticosEtraffic/Iconografia/pictogramas/E17.png",
+            },
+        )
         self.assertIsNotNone(estado.last_set)
+
+    def test_panel_apagado_no_tiene_urls_de_pictograma(self) -> None:
+        # El pictograma "0" (nada que mostrar) no es una URL real de icono.
+        estado = self.estados["167938"]
+        self.assertEqual(estado.pictogram_urls, [])
+
+    def test_url_de_pictograma_fuera_de_dominio_dgt_se_descarta(self) -> None:
+        vms_messages = load("vms_messages")
+        xml = b"""<?xml version="1.0" encoding="UTF-8"?>
+<d2:payload xmlns:d2="http://levelC/schema/3/d2Payload" xmlns:vms="http://levelC/schema/3/vms" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <vms:vmsControllerStatus>
+    <vms:vmsControllerReference targetClass="vms:VmsController" id="1"/>
+    <vms:vmsStatus>
+      <vms:vmsStatus>
+        <vms:vmsMessage messageIndex="1">
+          <vms:vmsMessage>
+            <vms:timeLastSet>2026-01-01T00:00:00.000+01:00</vms:timeLastSet>
+            <vms:displayAreaSettings displayAreaIndex="1">
+              <vms:displayAreaSettings xsi:type="vms:PictogramDisplay">
+                <vms:pictogramDisplayUrl>http://sitio-no-dgt.example/icono.png</vms:pictogramDisplayUrl>
+                <vms:pictogram xsi:type="vms:RegularPictogram">
+                  <vms:customPictogramCode>X1</vms:customPictogramCode>
+                  <vms:pictogramFlashing>false</vms:pictogramFlashing>
+                </vms:pictogram>
+              </vms:displayAreaSettings>
+            </vms:displayAreaSettings>
+          </vms:vmsMessage>
+        </vms:vmsMessage>
+      </vms:vmsStatus>
+    </vms:vmsStatus>
+  </vms:vmsControllerStatus>
+</d2:payload>"""
+        estados = vms_messages.parse_vms_messages(xml)
+        estado = estados["1"]
+        self.assertEqual(estado.pictogram_codes, ["X1"])
+        self.assertEqual(estado.pictogram_urls, [])
 
     def test_pagina_secundaria_con_contenido_distinto(self) -> None:
         estado = self.estados["61459"]

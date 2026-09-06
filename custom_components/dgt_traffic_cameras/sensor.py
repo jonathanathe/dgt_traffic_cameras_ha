@@ -119,6 +119,20 @@ class DgtPanelSensor(CoordinatorEntity[DgtVmsMessagesCoordinator], SensorEntity)
         return estado.text or _SIN_DATOS
 
     @property
+    def entity_picture(self) -> str | None:
+        """Icono real de la DGT del pictograma activo, si el panel tiene uno.
+
+        La propia DGT publica estas imágenes (p.ej. .../pictogramas/XE90a.png)
+        junto al mensaje; se usan tal cual en vez del icono genérico mientras
+        el panel esté mostrando alguno. Si no hay pictograma activo, se deja
+        que Home Assistant use el icono de _attr_icon como siempre.
+        """
+        estado = self._estado
+        if estado is None or not estado.pictogram_urls:
+            return None
+        return estado.pictogram_urls[0]
+
+    @property
     def extra_state_attributes(self) -> dict:
         estado = self._estado
         atributos = dict(self._static_attributes)

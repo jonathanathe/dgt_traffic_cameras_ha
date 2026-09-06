@@ -35,6 +35,7 @@ import logging
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 
+from .api import is_allowed_image_url
 from .const import XML_NAMESPACES
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,6 +56,7 @@ class PanelMessageState:
     lines: list[str] = field(default_factory=list)  # líneas físicas de la página principal
     other_pages: list[str] = field(default_factory=list)  # texto colapsado de otras páginas, si las hay
     pictogram_codes: list[str] = field(default_factory=list)  # de la página principal, sin los "0"
+    pictogram_urls: list[str] = field(default_factory=list)  # URLs reales de la DGT para esos códigos
     off: bool = False  # ninguna página tiene texto ni pictogramas
     last_set: str | None = None  # hora ISO del último cambio (página principal)
 
@@ -108,6 +110,7 @@ def parse_vms_messages(xml_bytes: bytes) -> dict[str, PanelMessageState]:
                 " / ".join(p["lines"]) for p in otras if p["lines"] or p["pictogram_codes"]
             ],
             pictogram_codes=principal["pictogram_codes"],
+            pictogram_urls=principal["pictogram_urls"],
             off=todo_vacio,
             last_set=principal["last_set"],
         )
@@ -122,13 +125,19 @@ def _parse_pagina(pagina_el: ET.Element, ns: dict[str, str]) -> dict:
     # anidado un nivel más adentro, en otro <vms:vmsMessage> sin atributos.
     contenido = pagina_el.find(f"{{{ns['vms']}}}vmsMessage")
     if contenido is None:
-        return {"lines": [], "pictogram_codes": [], "last_set": None}
+        return {
+            "lines": [],
+            "pictogram_codes": [],
+            "pictogram_urls": [],
+            "last_set": None,
+        }
 
     last_set_el = contenido.find(f"{{{ns['vms']}}}timeLastSet")
     last_set = last_set_el.text.strip() if last_set_el is not None and last_set_el.text else None
 
     lines: list[str] = []
     pictogram_codes: list[str] = []
+    pictogram_urls: list[str] = []
 
     for area in contenido.findall(f"{{{ns['vms']}}}displayAreaSettings"):
         area_tipo = area.find(f"{{{ns['vms']}}}displayAreaSettings")
@@ -159,7 +168,22 @@ def _parse_pagina(pagina_el: ET.Element, ns: dict[str, str]) -> dict:
             if codigo and codigo != "0":
                 pictogram_codes.append(codigo)
 
-    return {"lines": lines, "pictogram_codes": pictogram_codes, "last_set": last_set}
+                # La DGT ya trae la URL exacta del icono junto al código; se
+                # reutiliza tal cual en vez de reconstruirla a mano, y se
+                # valida con el mismo filtro que las imágenes de cámara
+                # (HTTPS + dominio de la DGT) antes de exponerla, porque
+                # también viene de un XML descargado de internet.
+                url_el = area_tipo.find(f"{{{ns['vms']}}}pictogramDisplayUrl")
+                url = url_el.text.strip() if url_el is not None and url_el.text else None
+                if url and is_allowed_image_url(url):
+                    pictogram_urls.append(url)
+
+    return {
+        "lines": lines,
+        "pictogram_codes": pictogram_codes,
+        "pictogram_urls": pictogram_urls,
+        "last_set": last_set,
+    }
 
 
 def _indice_seguro(valor: str | None) -> int:
