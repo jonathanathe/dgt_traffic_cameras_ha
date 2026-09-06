@@ -221,4 +221,8 @@ window.customCards.push({
   name: "DGT Panel Card",
   description:
     "Muestra un panel de mensaje variable de la DGT con el mismo aspecto que el visor oficial.",
+  // "preview" activa la vista previa en vivo en el selector de tarjetas
+  // (Home Assistant 2026.6+); por defecto es false y sin ella el
+  // selector solo muestra este nombre y descripción, sin renderizar nada.
+  preview: true,
 });
