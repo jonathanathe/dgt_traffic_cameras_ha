@@ -49,7 +49,9 @@ Todo se hace desde la interfaz, no hace falta tocar YAML.
 
 Cada combinación de provincia y carretera crea una entrada propia, que agrupa sus cámaras bajo un mismo dispositivo.
 
-Para añadir más cámaras de la misma carretera más adelante, usa el botón de **Opciones** (el engranaje) de esa entrada. Para otra carretera distinta, añade una nueva entrada.
+Para añadir más cámaras de la misma carretera más adelante, o para quitar alguna que ya no quieras, usa el botón de **Opciones** (el engranaje) de esa entrada: te preguntará si quieres **Añadir cámaras** o **Quitar cámaras**. Para otra carretera distinta, añade una nueva entrada.
+
+Al quitar una cámara, su entidad se elimina por completo de Home Assistant (no se queda como "no disponible"). No se pueden quitar todas las cámaras de una entrada desde aquí: si quieres vaciarla del todo, elimina la entrada entera desde **Dispositivos y servicios**.
 
 ---
 
