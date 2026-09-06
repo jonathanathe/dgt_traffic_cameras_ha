@@ -59,12 +59,16 @@ class DgtPanelCard extends HTMLElement {
 
   static getStubConfig(hass, entities) {
     // Si el usuario ya tiene algún panel configurado, se usa uno real de
-    // verdad para la vista previa (se detecta por tener el atributo
-    // "punto_kilometrico", propio de esta integración). Si no hay
-    // ninguno todavía, se deja sin entidad: la tarjeta usará DATOS_DEMO.
+    // verdad para la vista previa. OJO: "punto_kilometrico" NO sirve para
+    // distinguir un panel de una cámara, las dos entidades lo tienen (es
+    // un campo de ubicación compartido). "lineas" sí es exclusivo de los
+    // paneles, así que se usa ese, además de comprobar que sea del
+    // dominio sensor.* (las cámaras son camera.*). Si no hay ningún panel
+    // todavía, se deja sin entidad: la tarjeta usará DATOS_DEMO.
     const candidato = (entities || []).find((entityId) => {
+      if (!entityId.startsWith("sensor.")) return false;
       const estado = hass && hass.states && hass.states[entityId];
-      return Boolean(estado && estado.attributes && "punto_kilometrico" in estado.attributes);
+      return Boolean(estado && estado.attributes && "lineas" in estado.attributes);
     });
     return { entity: candidato || "" };
   }
