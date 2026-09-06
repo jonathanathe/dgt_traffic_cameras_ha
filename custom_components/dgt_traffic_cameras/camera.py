@@ -22,6 +22,7 @@ CÓMO SE PROTEGE AL SERVIDOR DE LA DGT (importante):
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import time
 
@@ -46,6 +47,7 @@ from .const import (
     IMAGE_MAGIC_OFFSET_CHECKS,
     MAX_IMAGE_BYTES,
     MIN_SECONDS_BETWEEN_IMAGE_FETCH,
+    PLACEHOLDER_IMAGE_SHA256_HASHES,
     REJECTED_CONTENT_TYPE_PREFIXES,
 )
 
@@ -154,6 +156,18 @@ class DgtTrafficCamera(Camera):
     def frame_interval(self) -> float:
         """Segundos que HA debe esperar entre fotogramas."""
         return FRAME_INTERVAL_SECONDS
+
+    @property
+    def available(self) -> bool:
+        """False mientras no tengamos ninguna foto real guardada.
+
+        Cubre dos casos: no se ha podido conectar todavía (red, timeout...),
+        y la DGT ha respondido con su imagen de "no disponible" (ver
+        _async_descargar_imagen). En ambos, sin esto, Home Assistant
+        mostraría la tarjeta de la cámara con un icono de imagen rota en
+        lugar de marcarla claramente como no disponible.
+        """
+        return self._cached_image is not None
 
     def _registrar_fallo(self) -> None:
         """Aumenta el contador de fallos y calcula cuándo reintentar.
@@ -319,6 +333,20 @@ class DgtTrafficCamera(Camera):
                             "(empieza por %r); se descarta",
                             self._attr_name,
                             datos[:16],
+                        )
+                        self._registrar_fallo()
+                        return None
+
+                    # La DGT devuelve, con código 200 y un JPEG válido de
+                    # verdad, su propia imagen de "no disponible" cuando la
+                    # cámara está averiada. Hay que descartarla igual que un
+                    # fallo de red: si no, se guardaría en el caché como si
+                    # fuera la foto real de la carretera.
+                    if hashlib.sha256(datos).hexdigest() in PLACEHOLDER_IMAGE_SHA256_HASHES:
+                        _LOGGER.debug(
+                            "Cámara %s: la DGT devolvió su imagen de "
+                            "'no disponible'; se trata como un fallo",
+                            self._attr_name,
                         )
                         self._registrar_fallo()
                         return None

@@ -183,3 +183,23 @@ IMAGE_MAGIC_OFFSET_CHECKS = (
     (0, b"RIFF", 8, b"WEBP"),
     (4, b"ftyp", 8, b"avif"),
 )
+
+# --- Imagen de "no disponible" de la propia DGT ----------------------------
+#
+# Cuando una cámara está averiada o retirada, la DGT no devuelve un error:
+# responde con un JPEG válido de verdad, siempre el mismo, con el dibujo de
+# un carrete de película y el texto "IMAGEN NO DISPONIBLE". Como es una
+# imagen legítima, la comprobación de "¿esto parece una foto?" la deja
+# pasar, y sin este chequeo la guardaríamos en el caché como si fuera la
+# foto real de la carretera.
+#
+# Al ser siempre el fichero exacto (comprobado: los metadatos EXIF llevan
+# fechas fijas de 2015/2025, no se generan al vuelo), se puede reconocer con
+# total fiabilidad calculando su hash SHA-256 y comparándolo, en vez de
+# fiarse del tamaño en bytes, que si varía según la cámara o la hora del día.
+PLACEHOLDER_IMAGE_SHA256_HASHES = frozenset(
+    {
+        # "Imagen no disponible" (carrete de película sobre fondo gris).
+        "e8703ff5957fa4136be7c39ef1bc8c61d7d2c54a46537791a1fb08467145cdb3",
+    }
+)

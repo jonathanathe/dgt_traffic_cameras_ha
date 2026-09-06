@@ -87,7 +87,9 @@ En un escenario de 28 cámaras con el panel abierto una hora, esto supone unas *
 ## Resolución de problemas
 
 **Las cámaras aparecen como "No disponible".**
-Activa el registro detallado añadiendo esto a `configuration.yaml` y reiniciando:
+Puede deberse a un fallo real de conexión, pero también a que la propia DGT esté devolviendo su imagen de aviso ("IMAGEN NO DISPONIBLE") para una cámara averiada. La integración detecta esa imagen concreta y no la muestra como si fuera una foto real: en ese caso, la entidad aparece como no disponible en vez de enseñar el aviso genérico.
+
+Para saber cuál de los dos casos es el tuyo, activa el registro detallado añadiendo esto a `configuration.yaml` y reiniciando:
 
 ```yaml
 logger:
