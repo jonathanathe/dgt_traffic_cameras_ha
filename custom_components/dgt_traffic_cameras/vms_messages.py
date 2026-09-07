@@ -139,7 +139,16 @@ def _parse_pagina(pagina_el: ET.Element, ns: dict[str, str]) -> dict:
     pictogram_codes: list[str] = []
     pictogram_urls: list[str] = []
 
-    for area in contenido.findall(f"{{{ns['vms']}}}displayAreaSettings"):
+    # Ordenadas por displayAreaIndex, NO por el orden en que aparecen en el
+    # XML: en datos reales de la DGT no siempre coinciden (se han visto
+    # zonas en el orden 1, 3, 2). Con un solo panel de una zona de texto no
+    # se nota, pero con dos zonas de texto el orden del documento podía
+    # mezclar las líneas en un orden distinto al que se ve en el cartel.
+    areas = sorted(
+        contenido.findall(f"{{{ns['vms']}}}displayAreaSettings"),
+        key=lambda a: _indice_seguro(a.get("displayAreaIndex")),
+    )
+    for area in areas:
         area_tipo = area.find(f"{{{ns['vms']}}}displayAreaSettings")
         if area_tipo is None:
             continue

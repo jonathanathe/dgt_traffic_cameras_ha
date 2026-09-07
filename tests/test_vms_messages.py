@@ -86,6 +86,50 @@ class TestParseVmsMessages(unittest.TestCase):
         self.assertEqual(estado.pictogram_codes, ["X1"])
         self.assertEqual(estado.pictogram_urls, [])
 
+    def test_zonas_se_ordenan_por_display_area_index_no_por_el_documento(self) -> None:
+        """M-05: en el XML real, el orden de las zonas no siempre coincide
+        con su displayAreaIndex (se han visto en orden 1, 3, 2)."""
+        xml = b"""<?xml version="1.0" encoding="UTF-8"?>
+<d2:payload xmlns:d2="http://levelC/schema/3/d2Payload" xmlns:vms="http://levelC/schema/3/vms" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <vms:vmsControllerStatus>
+    <vms:vmsControllerReference targetClass="vms:VmsController" id="1"/>
+    <vms:vmsStatus>
+      <vms:vmsStatus>
+        <vms:vmsMessage messageIndex="1">
+          <vms:vmsMessage>
+            <vms:timeLastSet>2026-01-01T00:00:00.000+01:00</vms:timeLastSet>
+            <vms:displayAreaSettings displayAreaIndex="3">
+              <vms:displayAreaSettings xsi:type="vms:TextDisplay">
+                <vms:textLine lineIndex="1">
+                  <vms:textLine>
+                    <vms:textLine>SEGUNDO</vms:textLine>
+                    <vms:lineFlashing>false</vms:lineFlashing>
+                  </vms:textLine>
+                </vms:textLine>
+              </vms:displayAreaSettings>
+            </vms:displayAreaSettings>
+            <vms:displayAreaSettings displayAreaIndex="1">
+              <vms:displayAreaSettings xsi:type="vms:TextDisplay">
+                <vms:textLine lineIndex="1">
+                  <vms:textLine>
+                    <vms:textLine>PRIMERO</vms:textLine>
+                    <vms:lineFlashing>false</vms:lineFlashing>
+                  </vms:textLine>
+                </vms:textLine>
+              </vms:displayAreaSettings>
+            </vms:displayAreaSettings>
+          </vms:vmsMessage>
+        </vms:vmsMessage>
+      </vms:vmsStatus>
+    </vms:vmsStatus>
+  </vms:vmsControllerStatus>
+</d2:payload>"""
+        estados = vms_messages.parse_vms_messages(xml)
+        estado = estados["1"]
+        # El documento trae la zona 3 (SEGUNDO) antes que la 1 (PRIMERO);
+        # el resultado debe respetar el índice, no el orden del XML.
+        self.assertEqual(estado.lines, ["PRIMERO", "SEGUNDO"])
+
     def test_pagina_secundaria_con_contenido_distinto(self) -> None:
         estado = self.estados["61459"]
         self.assertFalse(estado.off)
