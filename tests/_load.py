@@ -63,7 +63,11 @@ def _ensure_stubs() -> None:
         class HomeAssistant:  # noqa: D401 - stub
             data: dict = {}
 
+        def callback(func):  # noqa: D401 - stub, el decorador real solo marca la función
+            return func
+
         core.HomeAssistant = HomeAssistant
+        core.callback = callback
 
     if "homeassistant.config_entries" not in sys.modules:
         config_entries = _module("homeassistant.config_entries")
@@ -71,17 +75,55 @@ def _ensure_stubs() -> None:
         class ConfigEntry:  # noqa: D401 - stub
             pass
 
-        class ConfigFlow:  # noqa: D401 - stub
+        class AbortFlow(Exception):  # noqa: D401 - stub del data_entry_flow real
+            def __init__(self, reason):
+                super().__init__(reason)
+                self.reason = reason
+
+        class _FlowBaseFalso:
+            """Lo mínimo de ConfigFlow/OptionsFlow para probar la lógica de
+            los pasos sin depender de Home Assistant de verdad: solo las
+            llamadas que el propio código usa (async_set_unique_id,
+            _abort_if_unique_id_configured, async_show_form, ...), no un
+            gestor de flujos real."""
+
+            # El test rellena esto para simular "ya existe una entrada con
+            # este unique_id" antes de llamar al paso que se está probando.
+            unique_ids_configurados: set = set()
+
             def __init_subclass__(cls, **kwargs):
                 pass
 
-        class OptionsFlow:  # noqa: D401 - stub
+            async def async_set_unique_id(self, unique_id):
+                self._unique_id = unique_id
+
+            def _abort_if_unique_id_configured(self):
+                if getattr(self, "_unique_id", None) in self.unique_ids_configurados:
+                    raise AbortFlow("already_configured")
+
+            def async_show_form(self, *, step_id, data_schema, errors=None):
+                return {"type": "form", "step_id": step_id, "errors": errors}
+
+            def async_abort(self, *, reason):
+                return {"type": "abort", "reason": reason}
+
+            def async_create_entry(self, *, title, data):
+                return {"type": "create_entry", "title": title, "data": data}
+
+            def async_show_menu(self, *, step_id, menu_options):
+                return {"type": "menu", "step_id": step_id, "menu_options": menu_options}
+
+        class ConfigFlow(_FlowBaseFalso):  # noqa: D401 - stub
+            pass
+
+        class OptionsFlow(_FlowBaseFalso):  # noqa: D401 - stub
             pass
 
         config_entries.ConfigEntry = ConfigEntry
         config_entries.ConfigFlow = ConfigFlow
         config_entries.OptionsFlow = OptionsFlow
         config_entries.ConfigFlowResult = dict
+        config_entries.AbortFlow = AbortFlow
 
     if "homeassistant.helpers.aiohttp_client" not in sys.modules:
         aiohttp_client = _module("homeassistant.helpers.aiohttp_client")
@@ -180,6 +222,66 @@ def _ensure_stubs() -> None:
             pass
 
         entity_platform_mod.AddEntitiesCallback = AddEntitiesCallback
+
+    if "homeassistant.helpers.entity_registry" not in sys.modules:
+        entity_registry_mod = _module("homeassistant.helpers.entity_registry")
+
+        class _RegistroFalso:
+            def async_get_entity_id(self, domain, platform, unique_id):
+                return None
+
+            def async_remove(self, entity_id):
+                pass
+
+        def async_get(hass):  # noqa: ANN001, ANN201 - stub
+            return _RegistroFalso()
+
+        entity_registry_mod.async_get = async_get
+
+    if "homeassistant.helpers.selector" not in sys.modules:
+        selector_mod = _module("homeassistant.helpers.selector")
+
+        class SelectOptionDict(dict):  # noqa: D401 - stub, se comporta como dict de kwargs
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+        class SelectSelectorConfig(dict):  # noqa: D401 - stub
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+        class SelectSelector:  # noqa: D401 - stub
+            def __init__(self, config):
+                self.config = config
+
+        class SelectSelectorMode:
+            DROPDOWN = "dropdown"
+            LIST = "list"
+
+        selector_mod.SelectOptionDict = SelectOptionDict
+        selector_mod.SelectSelectorConfig = SelectSelectorConfig
+        selector_mod.SelectSelector = SelectSelector
+        selector_mod.SelectSelectorMode = SelectSelectorMode
+
+    if "voluptuous" not in sys.modules:
+        vol_mod = _module("voluptuous")
+
+        class Schema:  # noqa: D401 - stub; no valida nada, solo guarda el dict
+            def __init__(self, schema_dict):
+                self.schema_dict = schema_dict
+
+        class Required:  # noqa: D401 - stub
+            def __init__(self, key, default=None):
+                self.key = key
+                self.default = default
+
+            def __hash__(self):
+                return hash(self.key)
+
+            def __eq__(self, other):
+                return self.key == getattr(other, "key", other)
+
+        vol_mod.Schema = Schema
+        vol_mod.Required = Required
 
     if "homeassistant.exceptions" not in sys.modules:
         exceptions = _module("homeassistant.exceptions")

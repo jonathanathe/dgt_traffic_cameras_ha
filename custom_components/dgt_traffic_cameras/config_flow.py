@@ -200,6 +200,14 @@ class DgtTrafficCamerasConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Elegir la carretera dentro de la provincia elegida."""
         if user_input is not None:
             self._road = user_input["road"]
+            # Comprobar cuanto antes si esta combinación ya existe (en vez
+            # de esperar a que el usuario complete también el paso de
+            # elegir cámaras, para acabar diciéndoselo justo al final). La
+            # comprobación de verdad sigue estando también en
+            # async_step_cameras, sin quitarla: esta de aquí es solo para
+            # avisar antes, no la única que hay.
+            await self.async_set_unique_id(f"{self._province}_{self._road}")
+            self._abort_if_unique_id_configured()
             return await self.async_step_cameras()
 
         schema = _road_schema(self._all_cameras, self._province)
@@ -285,6 +293,11 @@ class DgtTrafficCamerasConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Elegir la carretera dentro de la provincia elegida."""
         if user_input is not None:
             self._road = user_input["road"]
+            # Mismo motivo que en el flujo de cámaras: avisar en cuanto se
+            # sabe provincia + carretera, sin esperar a que el usuario
+            # también elija los paneles concretos.
+            await self.async_set_unique_id(f"panel_{self._province}_{self._road}")
+            self._abort_if_unique_id_configured()
             return await self.async_step_panels()
 
         schema = _road_schema(self._all_panels, self._province)
