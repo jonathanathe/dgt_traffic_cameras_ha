@@ -38,9 +38,33 @@ class _EntradaFalsa:
             await callback()
 
 
+class _ConfigEntriesFalso:
+    """Emula hass.config_entries.async_entries(DOMAIN) con entradas de mentira."""
+
+    def __init__(self) -> None:
+        self.entradas: list = []
+
+    def async_entries(self, domain):
+        return self.entradas
+
+    def anadir_entrada_de_paneles(self, *device_ids: str) -> None:
+        entrada = type(
+            "EntradaDePanelesFalsa",
+            (),
+            {
+                "data": {
+                    const_mod.CONF_DEVICE_TYPE: const_mod.DEVICE_TYPE_VMS,
+                    const_mod.CONF_PANELS: [{"device_id": d} for d in device_ids],
+                }
+            },
+        )()
+        self.entradas.append(entrada)
+
+
 class _HassFalso:
     def __init__(self) -> None:
         self.data: dict = {}
+        self.config_entries = _ConfigEntriesFalso()
 
     async def async_add_executor_job(self, func, *args):
         # En el test no hace falta un hilo aparte de verdad: basta con
@@ -117,9 +141,24 @@ class TestAsyncGetOrCreate(unittest.IsolatedAsyncioTestCase):
 
     async def test_primera_entrada_crea_y_descarga(self) -> None:
         hass = _HassFalso()
+        hass.config_entries.anadir_entrada_de_paneles("167938")
         coordinator = await coordinator_mod.async_get_or_create(hass, "entrada_1")
         self.assertEqual(self.descargas_realizadas, 1)
         self.assertEqual(coordinator.data, {"167938": "estado-de-mentira"})
+
+    async def test_solo_se_guardan_los_paneles_configurados(self) -> None:
+        """M-06: no se retienen en memoria paneles que nadie tiene configurados."""
+
+        def parse_con_panel_ajeno(xml_bytes):
+            return {"167938": "mio", "999999": "de-otro-usuario-cualquiera"}
+
+        coordinator_mod.parse_vms_messages = parse_con_panel_ajeno
+
+        hass = _HassFalso()
+        hass.config_entries.anadir_entrada_de_paneles("167938")
+
+        coordinator = await coordinator_mod.async_get_or_create(hass, "entrada_1")
+        self.assertEqual(coordinator.data, {"167938": "mio"})
 
     async def test_segunda_entrada_reutiliza_sin_descargar_otra_vez(self) -> None:
         hass = _HassFalso()

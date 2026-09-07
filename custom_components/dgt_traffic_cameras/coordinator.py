@@ -25,6 +25,9 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import InventoryTooLargeError, async_download_xml
 from .const import (
+    CONF_DEVICE_TYPE,
+    CONF_PANELS,
+    DEVICE_TYPE_VMS,
     DOMAIN,
     INVENTORY_HEADERS,
     INVENTORY_TIMEOUT_SECONDS,
@@ -95,10 +98,37 @@ class DgtVmsMessagesCoordinator(DataUpdateCoordinator[dict[str, PanelMessageStat
         # hilo aparte para no congelar Home Assistant (mismo motivo que el
         # inventario de cámaras y las ubicaciones de paneles).
         try:
-            return await self.hass.async_add_executor_job(parse_vms_messages, xml_bytes)
+            todos = await self.hass.async_add_executor_job(parse_vms_messages, xml_bytes)
         except Exception as err:  # noqa: BLE001 - XML corrupto, formato inesperado...
             raise UpdateFailed(f"No se pudo interpretar el fichero de mensajes: {err}") from err
 
+        # El fichero trae los ~2.500 paneles de toda España; solo interesan
+        # los que el usuario tiene configurados de verdad. Sin este filtro,
+        # se retienen en memoria permanentemente los mensajes de miles de
+        # paneles ajenos por cada instalación, tenga 1 panel o 100.
+        necesarios = _device_ids_necesarios(self.hass)
+        return {
+            device_id: estado for device_id, estado in todos.items() if device_id in necesarios
+        }
+
+
+def _device_ids_necesarios(hass: HomeAssistant) -> set[str]:
+    """Todos los device_id de paneles configurados, en TODAS las entradas.
+
+    Se recalcula desde entry.data en cada refresco (nunca se acumula ni se
+    guarda entre refrescos): así siempre refleja la configuración actual,
+    sin arriesgarse a quedarse con ids obsoletos de un panel que ya se quitó
+    con la opción "Quitar paneles", o a que falte uno recién añadido.
+    """
+    necesarios: set[str] = set()
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        if entry.data.get(CONF_DEVICE_TYPE) != DEVICE_TYPE_VMS:
+            continue
+        for panel_data in entry.data.get(CONF_PANELS, []):
+            device_id = panel_data.get("device_id")
+            if device_id:
+                necesarios.add(device_id)
+    return necesarios
 
 async def async_get_or_create(hass: HomeAssistant, entry_id: str) -> DgtVmsMessagesCoordinator:
     """Devuelve el coordinador único, creándolo si es la primera entrada de paneles.
