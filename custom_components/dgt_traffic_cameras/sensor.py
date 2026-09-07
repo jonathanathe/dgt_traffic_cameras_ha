@@ -116,7 +116,16 @@ class DgtPanelSensor(CoordinatorEntity[DgtVmsMessagesCoordinator], SensorEntity)
             return _SIN_DATOS
         if estado.off:
             return "Sin mensaje"
-        return estado.text or _SIN_DATOS
+        if estado.text:
+            return estado.text
+        if estado.pictogram_codes:
+            # Panel con pictograma (p.ej. velocidad controlada) pero sin
+            # texto: NO es "sin mensaje" (estado.off ya lo habría cazado
+            # arriba) ni "sin datos" (sí venía en la última descarga). Antes
+            # caía en _SIN_DATOS, dando a entender que el panel no había
+            # emitido nada, cuando en realidad sí está mostrando algo.
+            return "Pictograma: " + ", ".join(estado.pictogram_codes)
+        return _SIN_DATOS
 
     @property
     def entity_picture(self) -> str | None:

@@ -131,8 +131,41 @@ def _ensure_stubs() -> None:
         class UpdateFailed(Exception):
             pass
 
+        class CoordinatorEntity:  # noqa: D401 - stub
+            def __class_getitem__(cls, item):
+                return cls
+
+            def __init__(self, coordinator):
+                self.coordinator = coordinator
+
         update_coordinator.DataUpdateCoordinator = DataUpdateCoordinator
         update_coordinator.UpdateFailed = UpdateFailed
+        update_coordinator.CoordinatorEntity = CoordinatorEntity
+
+    if "homeassistant.components.sensor" not in sys.modules:
+        sensor_mod = _module("homeassistant.components.sensor")
+
+        class SensorEntity:  # noqa: D401 - stub
+            pass
+
+        sensor_mod.SensorEntity = SensorEntity
+
+    if "homeassistant.helpers.entity" not in sys.modules:
+        entity_mod = _module("homeassistant.helpers.entity")
+
+        class DeviceInfo(dict):  # noqa: D401 - stub, se comporta como dict de kwargs
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+        entity_mod.DeviceInfo = DeviceInfo
+
+    if "homeassistant.helpers.entity_platform" not in sys.modules:
+        entity_platform_mod = _module("homeassistant.helpers.entity_platform")
+
+        class AddEntitiesCallback:  # noqa: D401 - stub, solo se usa como type hint
+            pass
+
+        entity_platform_mod.AddEntitiesCallback = AddEntitiesCallback
 
     if "homeassistant.exceptions" not in sys.modules:
         exceptions = _module("homeassistant.exceptions")
