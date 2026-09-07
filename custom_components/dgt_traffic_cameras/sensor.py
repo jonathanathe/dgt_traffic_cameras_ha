@@ -17,6 +17,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .api import short_entity_name
 from .const import CONF_PANELS, DOMAIN
 from .coordinator import DgtVmsMessagesCoordinator
 from .vms_messages import PanelMessageState
@@ -77,7 +78,10 @@ class DgtPanelSensor(CoordinatorEntity[DgtVmsMessagesCoordinator], SensorEntity)
         # que sus entidades choquen). No se cambia una vez creado: haría
         # que Home Assistant tratara la entidad como si fuera nueva.
         self._attr_unique_id = f"{entry.entry_id}_{self._device_id}"
-        self._attr_name = panel_data.get("name") or f"Panel DGT {self._device_id}"
+        # Nombre CORTO a propósito (sin la carretera): con
+        # _attr_has_entity_name = True, HA lo compone junto al nombre del
+        # dispositivo (que ya incluye la carretera). Ver short_entity_name.
+        self._attr_name = short_entity_name(panel_data)
 
         self._static_attributes: dict = {
             "carretera": panel_data.get("road_name"),

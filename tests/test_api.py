@@ -116,5 +116,35 @@ class TestParseCameraInventoryRegression(unittest.TestCase):
         self.assertEqual(cameras, [])
 
 
+class TestShortEntityName(unittest.TestCase):
+    """M-10: el nombre corto de entidad no debe repetir la carretera.
+
+    display_name (usado para el nombre del DISPOSITIVO) ya incluye la
+    carretera; short_entity_name es lo que se usa para el nombre de cada
+    ENTIDAD dentro de ese dispositivo, y no debe repetirla.
+    """
+
+    def test_no_incluye_la_carretera(self) -> None:
+        datos = {
+            "device_id": "1",
+            "name": "Ma-19 km 8.92 (sent. Llucmajor)",
+            "road_name": "Ma-19",
+            "road_destination": "Llucmajor",
+            "kilometer_point": "8.92",
+        }
+        corto = api.short_entity_name(datos)
+        self.assertNotIn("Ma-19", corto)
+        self.assertIn("8.92", corto)
+        self.assertIn("Llucmajor", corto)
+
+    def test_sin_punto_kilometrico_usa_el_nombre_completo_como_reserva(self) -> None:
+        datos = {"device_id": "1", "name": "Panel raro"}
+        self.assertEqual(api.short_entity_name(datos), "Panel raro")
+
+    def test_sin_nada_usa_el_device_id(self) -> None:
+        datos = {"device_id": "42"}
+        self.assertEqual(api.short_entity_name(datos), "Dispositivo 42")
+
+
 if __name__ == "__main__":
     unittest.main()

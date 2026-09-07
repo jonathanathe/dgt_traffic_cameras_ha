@@ -73,5 +73,13 @@ class TestNativeValue(unittest.TestCase):
         self.assertIn("R301100I", sensor.native_value)
 
 
+class TestNombreEntidad(unittest.TestCase):
+    def test_nombre_no_repite_la_carretera(self) -> None:
+        """M-10: con has_entity_name=True, HA antepone el nombre del
+        dispositivo (que ya incluye la carretera) al de la entidad."""
+        sensor = _crear_sensor({})
+        self.assertNotIn("A-54", sensor._attr_name)
+
+
 if __name__ == "__main__":
     unittest.main()

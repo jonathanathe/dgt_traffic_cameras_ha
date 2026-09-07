@@ -83,6 +83,32 @@ class DgtLocatedDevice:
         return base
 
 
+def short_entity_name(data: dict) -> str:
+    """Nombre corto para una entidad dentro de su dispositivo (grupo).
+
+    display_name (arriba) incluye la carretera, pero esa carretera ya
+    aparece en el nombre del DISPOSITIVO (un dispositivo por entrada de
+    configuración, que agrupa las cámaras/paneles de una carretera).
+
+    Con _attr_has_entity_name = True (todas las entidades de esta
+    integración lo usan), Home Assistant compone el nombre final como
+    "<nombre dispositivo> <nombre entidad>". Si el nombre de la entidad
+    también incluyera la carretera, saldría repetida dos veces ("...
+    Ma-19 Ma-19 km 8.92 (sent. Llucmajor)"): esto es justamente lo que
+    pasaba antes de usar esta función.
+
+    Recibe el dict tal y como se guarda en ConfigEntry.data (salida de
+    _camera_to_dict / _panel_to_dict en config_flow.py), no un
+    DgtLocatedDevice: para cuando se llama ya no queda el objeto original.
+    """
+    km = data.get("kilometer_point")
+    base = f"km {km}" if km else (data.get("name") or f"Dispositivo {data.get('device_id', '?')}")
+    destino = data.get("road_destination")
+    if destino:
+        base += f" (sent. {destino})"
+    return base
+
+
 @dataclass
 class DgtCamera(DgtLocatedDevice):
     """Representa una cámara tal y como la describe el feed de la DGT."""

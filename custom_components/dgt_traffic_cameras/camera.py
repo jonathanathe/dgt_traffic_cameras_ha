@@ -36,7 +36,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from PIL import Image
 
-from .api import is_allowed_image_url
+from .api import is_allowed_image_url, short_entity_name
 from .const import (
     BACKOFF_INITIAL_SECONDS,
     BACKOFF_MAX_SECONDS,
@@ -116,7 +116,10 @@ class DgtTrafficCamera(Camera):
         # estas cámaras como entidades nuevas, perdiendo los entity_id
         # actuales y rompiendo las tarjetas del panel ya configuradas.
         self._attr_unique_id = f"{entry.entry_id}_{device_id}"
-        self._attr_name = camera_data.get("name") or f"Cámara DGT {device_id}"
+        # Nombre CORTO a propósito (sin la carretera): con
+        # _attr_has_entity_name = True, HA lo compone junto al nombre del
+        # dispositivo (que ya incluye la carretera). Ver short_entity_name.
+        self._attr_name = short_entity_name(camera_data)
 
         self._static_attributes: dict = {}
         if (

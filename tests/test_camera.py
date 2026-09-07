@@ -57,5 +57,13 @@ class TestExtraStateAttributes(unittest.TestCase):
         self.assertIn("ultima_actualizacion", camara.extra_state_attributes)
 
 
+class TestNombreEntidad(unittest.TestCase):
+    def test_nombre_no_repite_la_carretera(self) -> None:
+        """M-10: con has_entity_name=True, HA antepone el nombre del
+        dispositivo (que ya incluye la carretera) al de la entidad."""
+        camara = camera_mod.DgtTrafficCamera(_EntradaFalsa(), _camera_data())
+        self.assertNotIn("A-1", camara._attr_name)
+
+
 if __name__ == "__main__":
     unittest.main()
