@@ -18,6 +18,7 @@ import logging
 from datetime import timedelta
 
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -47,6 +48,22 @@ class DgtVmsMessagesCoordinator(DataUpdateCoordinator[dict[str, PanelMessageStat
         super().__init__(
             hass,
             _LOGGER,
+            # config_entry=None A PROPÓSITO. Si no se pasa nada, Home
+            # Assistant coge "la entrada que se esté configurando ahora
+            # mismo" (vía ContextVar) y, lo importante, hace
+            # entry.async_on_unload(self.async_shutdown): ata el APAGADO
+            # del coordinador a ESA entrada concreta.
+            #
+            # Con un coordinador compartido por varias entradas, eso es un
+            # bug real y ya confirmado: si esa primera entrada se recarga o
+            # se borra, el coordinador se apaga (async_shutdown pone
+            # _shutdown_requested=True) aunque otras entradas lo sigan
+            # usando, y se queda muerto en hass.data sin que nada lo
+            # detecte ni lo vuelva a levantar. Pasando None explícito, el
+            # coordinador no depende del ciclo de vida de ninguna entrada
+            # en particular; su vida la controlamos nosotros a mano en
+            # async_get_or_create/async_release.
+            config_entry=None,
             name="Mensajes de paneles DGT",
             update_interval=timedelta(seconds=VMS_MESSAGES_UPDATE_INTERVAL_SECONDS),
         )
@@ -79,39 +96,39 @@ async def async_get_or_create(hass: HomeAssistant, entry_id: str) -> DgtVmsMessa
     """Devuelve el coordinador único, creándolo si es la primera entrada de paneles.
 
     Se lleva un recuento de qué entry_id lo están usando (async_release lo
-    quita) para saber cuándo ya no lo necesita nadie y se puede liberar.
+    quita) para saber cuándo ya no lo necesita nadie y se puede liberar. El
+    entry_id solo se añade a ese recuento si esta llamada consigue datos de
+    verdad (aquí o de una llamada anterior); así una entrada que nunca llega
+    a arrancar no se queda "usando" el coordinador para siempre.
     """
     domain_data = hass.data.setdefault(DOMAIN, {})
     entries: set[str] = domain_data.setdefault(_DATA_COORDINATOR_ENTRIES, set())
-    entries.add(entry_id)
 
     coordinator: DgtVmsMessagesCoordinator | None = domain_data.get(_DATA_COORDINATOR)
     if coordinator is None:
         coordinator = DgtVmsMessagesCoordinator(hass)
         domain_data[_DATA_COORDINATOR] = coordinator
 
-        # Este refresco debe hacerse AQUÍ, solo la primera vez que se crea
-        # el coordinador de verdad, y nunca más.
-        #
-        # POR QUÉ: async_config_entry_first_refresh() comprueba que LA
-        # ENTRADA ACTUAL esté en estado SETUP_IN_PROGRESS, y ata el
-        # coordinador a esa entrada concreta para el resto de su vida. Como
-        # el coordinador es un singleton compartido por todas las entradas
-        # de paneles, si se volviera a llamar aquí al añadir una SEGUNDA
-        # entrada, comprobaría el estado de la PRIMERA entrada (que para
-        # entonces ya está LOADED, no SETUP_IN_PROGRESS) y HA lo rechaza
-        # con un ConfigEntryError. Esto pasó de verdad al añadir una
-        # segunda entrada de paneles: "async_config_entry_first_refresh
-        # called when config entry state is ConfigEntryState.LOADED".
-        await coordinator.async_config_entry_first_refresh()
-    elif not coordinator.data:
-        # El coordinador ya existía (otra entrada de paneles lo creó antes)
-        # pero todavía no tiene datos (la primera descarga puede tardar
-        # unos segundos). async_refresh() no comprueba el estado de
-        # ninguna ConfigEntry ni falla el setup si la descarga falla: es
-        # seguro llamarlo para cualquier entrada, no solo la primera.
+    if coordinator.data is None:
+        # Cubre dos casos con el mismo código: el coordinador se acaba de
+        # crear (primera entrada de paneles de verdad), o ya existía pero
+        # una descarga anterior falló y nunca llegó a tener datos. En
+        # ambos, un simple async_refresh() basta: no depende de ninguna
+        # ConfigEntry ni de su estado (a diferencia de
+        # async_config_entry_first_refresh(), que ya no se puede usar aquí
+        # ahora que el coordinador se crea con config_entry=None).
         await coordinator.async_refresh()
 
+        if coordinator.data is None:
+            # La descarga ha fallado de verdad. Igual que hacía
+            # async_config_entry_first_refresh() antes, se hace fallar el
+            # setup de esta entrada (Home Assistant reintentará solo más
+            # adelante) en vez de dejarla "cargada" sin ningún dato.
+            raise ConfigEntryNotReady(
+                "No se pudieron descargar los mensajes de los paneles de la DGT"
+            )
+
+    entries.add(entry_id)
     return coordinator
 
 

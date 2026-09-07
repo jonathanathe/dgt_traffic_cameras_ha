@@ -95,17 +95,56 @@ def _ensure_stubs() -> None:
         update_coordinator = _module("homeassistant.helpers.update_coordinator")
 
         class DataUpdateCoordinator:  # noqa: D401 - stub
+            """Réplica mínima pero fiel del DataUpdateCoordinator real.
+
+            En particular reproduce el detalle que causó el bug H-01: si se
+            le pasa una config_entry, se registra para apagarse solo cuando
+            ESA entrada se descargue (config_entry.async_on_unload). Con
+            config_entry=None (el fix), no se registra nada.
+            """
+
             def __class_getitem__(cls, item):
                 return cls
 
-            def __init__(self, hass, logger, *, name, update_interval=None):
-                pass
+            def __init__(
+                self, hass, logger, *, name, update_interval=None, config_entry=None
+            ):
+                self.hass = hass
+                self.name = name
+                self.data = None
+                self.last_update_success = True
+                self.config_entry = config_entry
+                self.shutdown_llamado = False
+                if self.config_entry is not None:
+                    self.config_entry.async_on_unload(self.async_shutdown)
+
+            async def async_refresh(self) -> None:
+                try:
+                    self.data = await self._async_update_data()
+                    self.last_update_success = True
+                except Exception:  # noqa: BLE001 - igual que UpdateFailed real
+                    self.last_update_success = False
+
+            async def async_shutdown(self) -> None:
+                self.shutdown_llamado = True
 
         class UpdateFailed(Exception):
             pass
 
         update_coordinator.DataUpdateCoordinator = DataUpdateCoordinator
         update_coordinator.UpdateFailed = UpdateFailed
+
+    if "homeassistant.exceptions" not in sys.modules:
+        exceptions = _module("homeassistant.exceptions")
+
+        class ConfigEntryNotReady(Exception):
+            pass
+
+        class ConfigEntryError(Exception):
+            pass
+
+        exceptions.ConfigEntryNotReady = ConfigEntryNotReady
+        exceptions.ConfigEntryError = ConfigEntryError
 
     if "aiohttp" not in sys.modules:
         aiohttp = _module("aiohttp")
