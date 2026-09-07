@@ -35,8 +35,12 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 # Clave interna donde guardamos, por cada entrada, la "huella" de su
-# configuración la última vez que se cargó (qué dispositivos tiene y, desde
-# la Fase 3, si el interruptor de mapa está activado).
+# configuración la última vez que se cargó: qué dispositivos tiene, y si
+# el interruptor de mapa está activado (CONF_SHOW_ON_MAP). Ese interruptor
+# se preparó para una función de mapa que se probó y se acabó revirtiendo
+# por completo (ningún flujo de configuración lo pone hoy); se deja aquí
+# tal cual porque no molesta —options.get(..., False) siempre da
+# False— y si algún día se retoma esa función, ya está contemplado.
 _HUELLAS = "huellas_entradas"
 
 
@@ -64,9 +68,11 @@ def _huella_entry(entry: ConfigEntry) -> tuple[str, ...]:
         dispositivos = entry.data.get(CONF_CAMERAS, [])
 
     ids = tuple(sorted(d.get("device_id", "") for d in dispositivos))
-    # El interruptor de mapa (Fase 3) se añade aquí desde ya: así, cuando
-    # exista, activarlo/desactivarlo disparará una recarga sin tener que
-    # tocar de nuevo esta función.
+    # Ver el comentario de _HUELLAS: este interruptor no lo activa ningún
+    # flujo de configuración actual (siempre da False), pero se deja
+    # incluido en la huella por si se retoma en el futuro: así, si algún
+    # día vuelve a existir, activarlo/desactivarlo ya disparará una
+    # recarga sin tener que tocar de nuevo esta función.
     mostrar_en_mapa = bool(entry.options.get(CONF_SHOW_ON_MAP, False))
     return ids + (f"show_on_map={mostrar_en_mapa}",)
 
