@@ -116,6 +116,25 @@ class TestParseCameraInventoryRegression(unittest.TestCase):
         self.assertEqual(cameras, [])
 
 
+class TestParseoXmlSeguro(unittest.TestCase):
+    """I-01: el parseo usa defusedxml en vez de xml.etree.ElementTree
+    directamente, para no procesar construcciones XML maliciosas (bombas
+    de entidades, referencias externas) aunque la fuente actual (HTTPS de
+    la DGT) sea de bajo riesgo."""
+
+    def test_bomba_de_entidades_se_rechaza_en_vez_de_expandirse(self) -> None:
+        from defusedxml.common import EntitiesForbidden
+
+        xml_malicioso = b"""<?xml version="1.0"?>
+<!DOCTYPE d2:payload [
+<!ENTITY bomba "boom">
+]>
+<d2:payload xmlns:d2="http://levelC/schema/3/d2Payload">&bomba;</d2:payload>"""
+
+        with self.assertRaises(EntitiesForbidden):
+            api._parse_camera_inventory(xml_malicioso)
+
+
 class TestShortEntityName(unittest.TestCase):
     """M-10: el nombre corto de entidad no debe repetir la carretera.
 

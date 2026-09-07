@@ -36,6 +36,12 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from datetime import datetime
 
+# I-01: fromstring de defusedxml en vez del de la librería estándar (ver
+# el razonamiento completo en api.py, que tiene el mismo cambio). Los
+# objetos que devuelve siguen siendo xml.etree.ElementTree.Element
+# normales, así que el resto del código (ET.Element como tipo) no cambia.
+from defusedxml import ElementTree as DefusedET
+
 from .api import is_allowed_image_url
 from .const import XML_NAMESPACES
 
@@ -73,7 +79,7 @@ def parse_vms_messages(xml_bytes: bytes) -> dict[str, PanelMessageState]:
     (ver coordinator.py) — con ~4 MB de XML, parsearla en el bucle de
     eventos congelaría Home Assistant entero durante el proceso.
     """
-    root = ET.fromstring(xml_bytes)
+    root = DefusedET.fromstring(xml_bytes)
     ns = XML_NAMESPACES
 
     estados: dict[str, PanelMessageState] = {}

@@ -201,6 +201,19 @@ class TestParseVmsMessages(unittest.TestCase):
         self.assertIsNone(estado.last_set)
         self.assertEqual(estado.lines, ["TEXTO"])
 
+    def test_bomba_de_entidades_se_rechaza_en_vez_de_expandirse(self) -> None:
+        """I-01: mismo cambio que en api.py (ver TestParseoXmlSeguro ahí)."""
+        from defusedxml.common import EntitiesForbidden
+
+        xml_malicioso = b"""<?xml version="1.0"?>
+<!DOCTYPE d2:payload [
+<!ENTITY bomba "boom">
+]>
+<d2:payload xmlns:d2="http://levelC/schema/3/d2Payload">&bomba;</d2:payload>"""
+
+        with self.assertRaises(EntitiesForbidden):
+            vms_messages.parse_vms_messages(xml_malicioso)
+
     def test_texto_recortado_a_255_para_el_estado(self) -> None:
         estado = vms_messages.PanelMessageState(
             device_id="x",

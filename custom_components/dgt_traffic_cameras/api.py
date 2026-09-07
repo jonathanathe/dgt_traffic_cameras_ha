@@ -26,6 +26,14 @@ from dataclasses import dataclass
 from urllib.parse import urlparse
 
 import aiohttp
+# I-01: fromstring de defusedxml en vez del de la librería estándar. La
+# fuente es HTTPS del Estado (riesgo ya bajo), pero un XML malicioso
+# (bomba de entidades, referencias externas) podría llegar por un ataque
+# de intermediario o si la propia DGT se viera comprometida; defusedxml
+# desactiva esas construcciones antes de parsear. Los objetos que devuelve
+# siguen siendo xml.etree.ElementTree.Element normales, así que el resto
+# del código (ET.Element, ET.ParseError como tipos) no cambia.
+from defusedxml import ElementTree as DefusedET
 from homeassistant.core import HomeAssistant
 
 from .const import (
@@ -318,7 +326,7 @@ def _parse_camera_inventory(xml_bytes: bytes) -> list[DgtCamera]:
     NOTA: esta función es síncrona a propósito y está pensada para
     ejecutarse en un hilo aparte (ver async_fetch_camera_inventory).
     """
-    root = ET.fromstring(xml_bytes)
+    root = DefusedET.fromstring(xml_bytes)
     ns = XML_NAMESPACES
 
     cameras: list[DgtCamera] = []
@@ -417,7 +425,7 @@ def _parse_vms_locations(xml_bytes: bytes) -> list[DgtPanelLocation]:
     NOTA: síncrona a propósito, pensada para ejecutarse en un hilo aparte
     (ver async_fetch_vms_locations).
     """
-    root = ET.fromstring(xml_bytes)
+    root = DefusedET.fromstring(xml_bytes)
     ns = XML_NAMESPACES
 
     panels: list[DgtPanelLocation] = []
