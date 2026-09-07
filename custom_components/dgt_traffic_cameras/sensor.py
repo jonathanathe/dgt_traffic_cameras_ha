@@ -19,7 +19,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import short_entity_name
 from .const import CONF_PANELS, DOMAIN
-from .coordinator import DgtVmsMessagesCoordinator
+from .coordinator import DATA_COORDINATOR_BY_ENTRY, DgtVmsMessagesCoordinator
 from .vms_messages import PanelMessageState
 
 _LOGGER = logging.getLogger(__name__)
@@ -38,9 +38,19 @@ async def async_setup_entry(
     # El coordinador ya se creó y refrescó en __init__.py, ANTES de
     # reenviar a esta plataforma (hacerlo aquí dentro lanzaría un
     # ConfigEntryError "raised in forwarded platform" en Home Assistant).
-    coordinator: DgtVmsMessagesCoordinator = hass.data[DOMAIN][
-        "vms_coordinator_by_entry"
-    ][entry.entry_id]
+    try:
+        coordinator: DgtVmsMessagesCoordinator = hass.data[DOMAIN][
+            DATA_COORDINATOR_BY_ENTRY
+        ][entry.entry_id]
+    except KeyError as err:
+        # No debería pasar nunca (async_setup_entry en __init__.py lo deja
+        # preparado justo antes de reenviar aquí), pero si pasara, un
+        # KeyError a secas no dice nada útil sobre la causa real.
+        raise RuntimeError(
+            f"No se encontró el coordinador de mensajes para la entrada "
+            f"{entry.entry_id!r}; ¿se está configurando esta plataforma "
+            f"sin pasar antes por __init__.py:async_setup_entry?"
+        ) from err
 
     # Misma protección contra duplicados que ya tienen las cámaras.
     vistas: set[str] = set()

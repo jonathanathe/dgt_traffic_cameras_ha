@@ -14,6 +14,7 @@ from ._load import load
 
 sensor_mod = load("sensor")
 vms_messages_mod = load("vms_messages")
+const_mod = load("const")
 
 
 class _CoordinatorFalso:
@@ -71,6 +72,25 @@ class TestNativeValue(unittest.TestCase):
         sensor = _crear_sensor({"167938": estado})
         self.assertNotEqual(sensor.native_value, "Sin datos")
         self.assertIn("R301100I", sensor.native_value)
+
+
+class TestAsyncSetupEntry(unittest.IsolatedAsyncioTestCase):
+    """L-04: si el coordinador no está donde se espera, un error claro,
+    no un KeyError críptico."""
+
+    async def test_error_claro_si_falta_el_coordinador(self) -> None:
+        hass = type("HassFalso", (), {"data": {const_mod.DOMAIN: {}}})()
+        entry = type(
+            "EntradaFalsa",
+            (),
+            {"entry_id": "entry1", "data": {const_mod.CONF_PANELS: []}},
+        )()
+
+        async def callback(entities):
+            pass
+
+        with self.assertRaises(RuntimeError):
+            await sensor_mod.async_setup_entry(hass, entry, callback)
 
 
 class TestNombreEntidad(unittest.TestCase):

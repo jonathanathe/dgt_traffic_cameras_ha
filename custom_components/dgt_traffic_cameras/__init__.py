@@ -87,7 +87,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # sensor lanzaría un ConfigEntryError ("raised in forwarded
         # platform") en Home Assistant.
         coordinator = await vms_coordinator.async_get_or_create(hass, entry.entry_id)
-        hass.data[DOMAIN].setdefault("vms_coordinator_by_entry", {})[entry.entry_id] = (
+        hass.data[DOMAIN].setdefault(vms_coordinator.DATA_COORDINATOR_BY_ENTRY, {})[entry.entry_id] = (
             coordinator
         )
 
@@ -132,7 +132,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     siguiera existiendo un instante después.
     """
     if entry.data.get(CONF_DEVICE_TYPE) == DEVICE_TYPE_VMS:
-        hass.data.get(DOMAIN, {}).get("vms_coordinator_by_entry", {}).pop(
+        hass.data.get(DOMAIN, {}).get(vms_coordinator.DATA_COORDINATOR_BY_ENTRY, {}).pop(
             entry.entry_id, None
         )
         await vms_coordinator.async_release(hass, entry.entry_id)

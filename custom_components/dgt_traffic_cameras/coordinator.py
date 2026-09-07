@@ -44,6 +44,14 @@ _LOGGER = logging.getLogger(__name__)
 _DATA_COORDINATOR = "vms_coordinator"
 _DATA_COORDINATOR_ENTRIES = "vms_coordinator_entries"
 
+# Esta, a diferencia de las dos de arriba, la usan también __init__.py y
+# sensor.py (para encontrar el coordinador que le toca a su entrada), así
+# que es pública a propósito: antes era la misma cadena literal
+# "vms_coordinator_by_entry" copiada a mano en los tres sitios, lo que
+# habría sido fácil de desincronizar sin ningún aviso si alguien la
+# cambiaba en uno solo.
+DATA_COORDINATOR_BY_ENTRY = "vms_coordinator_by_entry"
+
 # Evita que dos entradas de paneles configurándose casi a la vez (Home
 # Assistant puede hacerlo concurrentemente) creen el coordinador o lancen
 # su primer refresco dos veces en paralelo, duplicando la descarga de ~4 MB
