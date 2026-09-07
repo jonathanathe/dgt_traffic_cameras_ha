@@ -101,6 +101,31 @@ class TestNombreEntidad(unittest.TestCase):
         self.assertNotIn("A-54", sensor._attr_name)
 
 
+class TestEntityPictureUsaElProxy(unittest.TestCase):
+    def test_entity_picture_no_es_la_url_directa_de_la_dgt(self) -> None:
+        """I-06: antes entity_picture era la URL de la DGT tal cual, así
+        que el navegador de quien viera el dashboard contactaba
+        directamente con etraffic.dgt.es. Ahora debe ser la URL del proxy
+        propio de Home Assistant, con la URL real de la DGT como
+        parámetro (codificada, para no romper la query string)."""
+        url_dgt = "https://etraffic.dgt.es/estaticosEtraffic/Iconografia/pictogramas/E17.png"
+        estado = vms_messages_mod.PanelMessageState(
+            device_id="167938",
+            text="",
+            text_full="",
+            pictogram_codes=["E17"],
+            pictogram_urls=[url_dgt],
+            off=False,
+        )
+        sensor = _crear_sensor({"167938": estado})
+
+        entity_picture = sensor.entity_picture
+
+        self.assertTrue(entity_picture.startswith("/api/dgt_traffic_cameras/pictogram?url="))
+        self.assertNotIn("etraffic.dgt.es", entity_picture.split("url=", 1)[0])
+        self.assertIn("etraffic.dgt.es", entity_picture)
+
+
 class TestNoSeMutaElEstadoCompartido(unittest.TestCase):
     def test_mutar_las_lineas_del_atributo_no_toca_el_estado_del_coordinador(
         self,

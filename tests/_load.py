@@ -295,6 +295,18 @@ def _ensure_stubs() -> None:
         exceptions.ConfigEntryNotReady = ConfigEntryNotReady
         exceptions.ConfigEntryError = ConfigEntryError
 
+    if "homeassistant.components.http" not in sys.modules:
+        http_mod = _module("homeassistant.components.http")
+
+        class HomeAssistantView:  # noqa: D401 - stub
+            """Lo mínimo para que http_views.py se pueda importar y su
+            clase se pueda definir (url/name/requires_auth de clase, un
+            get() que el test no llega a ejecutar: probar de verdad una
+            vista HTTP exigiría aiohttp real, ver pictogram_proxy.py para
+            la lógica que sí se prueba)."""
+
+        http_mod.HomeAssistantView = HomeAssistantView
+
     if "aiohttp" not in sys.modules:
         aiohttp = _module("aiohttp")
 
@@ -302,6 +314,21 @@ def _ensure_stubs() -> None:
             pass
 
         aiohttp.ClientSession = ClientSession
+
+        web_mod = _module("aiohttp.web")
+
+        class Request:  # noqa: D401 - stub, solo se usa como type hint
+            pass
+
+        class Response:  # noqa: D401 - stub
+            def __init__(self, *, status=200, text=None, body=None, content_type=None):
+                self.status = status
+                self.text = text
+                self.body = body
+                self.content_type = content_type
+
+        web_mod.Request = Request
+        web_mod.Response = Response
 
 
 def load(module_name: str) -> types.ModuleType:

@@ -9,6 +9,7 @@ los paneles configurados, sea cual sea el número de entradas.
 from __future__ import annotations
 
 import logging
+from urllib.parse import quote
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
@@ -20,6 +21,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .api import short_entity_name
 from .const import CONF_PANELS, DOMAIN
 from .coordinator import DATA_COORDINATOR_BY_ENTRY, DgtVmsMessagesCoordinator
+from .http_views import PICTOGRAM_PROXY_URL
 from .vms_messages import PanelMessageState
 
 _LOGGER = logging.getLogger(__name__)
@@ -150,14 +152,20 @@ class DgtPanelSensor(CoordinatorEntity[DgtVmsMessagesCoordinator], SensorEntity)
         """Icono real de la DGT del pictograma activo, si el panel tiene uno.
 
         La propia DGT publica estas imágenes (p.ej. .../pictogramas/XE90a.png)
-        junto al mensaje; se usan tal cual en vez del icono genérico mientras
-        el panel esté mostrando alguno. Si no hay pictograma activo, se deja
-        que Home Assistant use el icono de _attr_icon como siempre.
+        junto al mensaje; se usan en vez del icono genérico mientras el panel
+        esté mostrando alguno. Si no hay pictograma activo, se deja que Home
+        Assistant use el icono de _attr_icon como siempre.
+
+        I-06: se devuelve la URL del PROXY propio (ver pictogram_proxy.py /
+        http_views.py), no la URL directa de la DGT. Así es Home Assistant
+        quien descarga la imagen de la DGT, y el navegador de quien vea el
+        dashboard solo contacta con la propia instancia de Home Assistant,
+        no con la DGT.
         """
         estado = self._estado
         if estado is None or not estado.pictogram_urls:
             return None
-        return estado.pictogram_urls[0]
+        return f"{PICTOGRAM_PROXY_URL}?url={quote(estado.pictogram_urls[0], safe='')}"
 
     @property
     def extra_state_attributes(self) -> dict:

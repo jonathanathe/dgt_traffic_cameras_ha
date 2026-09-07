@@ -73,7 +73,7 @@ Al quitar un dispositivo, su entidad se elimina por completo de Home Assistant (
 
 **Instalación** (solo manual; HACS no permite añadir el mismo repositorio dos veces con categorías distintas, así que no se puede gestionar desde ahí además de como integración):
 
-1. Copia `www/dgt-panel-card.js` a la carpeta `config/www/` de tu Home Assistant (créala si no existe).
+1. Copia `www/dgt-panel-card.js` **junto con** `www/dgt-panel-card-header.png` y `www/dgt-panel-card-background.png` a la carpeta `config/www/` de tu Home Assistant (créala si no existe). Esas dos imágenes son el icono de cabecera y el fondo del cartel; van empaquetadas para no depender de cargarlas cada vez desde la web de la DGT.
 2. Ve a **Ajustes → Paneles de control → Recursos** (los tres puntos de arriba a la derecha en la lista de dashboards → *Recursos*; si no lo ves, activa antes el *Modo avanzado* en tu perfil de usuario).
 3. Añade un recurso nuevo: URL `/local/dgt-panel-card.js`, tipo **Módulo JavaScript**.
 4. Recarga la página del navegador (Ctrl+F5).

@@ -31,6 +31,8 @@ from .const import (
     DEVICE_TYPE_VMS,
     DOMAIN,
 )
+from .http_views import DgtPictogramProxyView
+from .pictogram_proxy import clear_pictogram_cache
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -75,6 +77,21 @@ def _huella_entry(entry: ConfigEntry) -> tuple[str, ...]:
     # recarga sin tener que tocar de nuevo esta función.
     mostrar_en_mapa = bool(entry.options.get(CONF_SHOW_ON_MAP, False))
     return ids + (f"show_on_map={mostrar_en_mapa}",)
+
+
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Registra recursos a nivel de COMPONENTE, no de entrada concreta.
+
+    Home Assistant llama a esto una sola vez por arranque, antes de
+    configurar ninguna entrada — a diferencia de async_setup_entry, que se
+    llama una vez por cada entrada (podría haber varias). El proxy de
+    pictogramas (I-06) es una única ruta HTTP compartida por todas las
+    entidades sensor.*, así que tiene que registrarse aquí y no allí: si
+    se registrara en async_setup_entry, tener dos entradas de paneles
+    intentaría registrar la misma ruta dos veces.
+    """
+    hass.http.register_view(DgtPictogramProxyView())
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -151,6 +168,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     if not huellas:
         clear_inventory_cache()
         clear_vms_locations_cache()
+        clear_pictogram_cache()
         hass.data.pop(DOMAIN, None)
 
 

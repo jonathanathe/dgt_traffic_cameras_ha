@@ -15,27 +15,43 @@
  * interpolación de cadenas), para que un feed manipulado no pueda inyectar
  * HTML o JavaScript en el dashboard.
  *
- * Instalación: copia este fichero a config/www/dgt-panel-card.js y añádelo
- * como recurso en Configuración > Paneles de control > Recursos (tipo
- * "Módulo JavaScript", URL "/local/dgt-panel-card.js"). Después, en
- * cualquier dashboard, añade una tarjeta de tipo "Custom: DGT Panel Card"
- * (o en YAML: type: custom:dgt-panel-card, entity: sensor.tu_panel).
+ * PRIVACIDAD (I-06): el icono de cabecera y el fondo del cartel son dos
+ * imágenes fijas de la DGT que no cambian nunca, así que se empaquetan
+ * aquí mismo (dgt-panel-card-header.png / dgt-panel-card-background.png)
+ * en vez de enlazarlas en caliente a etraffic.dgt.es: así el navegador de
+ * quien vea el dashboard no contacta con la DGT solo por ver la tarjeta.
+ * El pictograma SÍ cambia según el mensaje del panel (son cientos de
+ * códigos posibles) y no se puede empaquetar de antemano; para ese caso,
+ * entity_picture ya viene resuelto por sensor.py como una URL local de
+ * Home Assistant (el proxy de pictogram_proxy.py), no como la URL directa
+ * de la DGT — esta tarjeta simplemente la usa tal cual, sin saber que es
+ * un proxy.
+ *
+ * Instalación: copia este fichero (y las dos imágenes .png de al lado) a
+ * config/www/ y añade dgt-panel-card.js como recurso en Configuración >
+ * Paneles de control > Recursos (tipo "Módulo JavaScript", URL
+ * "/local/dgt-panel-card.js"). Después, en cualquier dashboard, añade una
+ * tarjeta de tipo "Custom: DGT Panel Card" (o en YAML:
+ * type: custom:dgt-panel-card, entity: sensor.tu_panel).
  */
 
-const URL_ICONO_CABECERA =
-  "https://etraffic.dgt.es/estaticosEtraffic/Iconografia/iconos/pmv.png";
-const URL_FONDO_CARTEL =
-  "https://etraffic.dgt.es/estaticosEtraffic/Iconografia/iconografiaGeneral/panel_cms.png";
+const URL_ICONO_CABECERA = "/local/dgt-panel-card-header.png";
+const URL_FONDO_CARTEL = "/local/dgt-panel-card-background.png";
 
 // Datos de mentira para cuando la tarjeta se muestra sin una entidad
 // configurada (por ejemplo, en la vista previa del selector de tarjetas
-// de Lovelace), para que se vea un ejemplo real en vez de un error.
+// de Lovelace), para que se vea un ejemplo real en vez de un error. El
+// pictograma de ejemplo pasa por el mismo proxy que usaría una entidad
+// real (ver la nota de PRIVACIDAD arriba).
 const DATOS_DEMO = {
   carretera: "Ma-19",
   punto_kilometrico: "8.92",
   sentido_hacia: "Llucmajor",
   entity_picture:
-    "https://etraffic.dgt.es/estaticosEtraffic/Iconografia/pictogramas/XE90a.png",
+    "/api/dgt_traffic_cameras/pictogram?url=" +
+    encodeURIComponent(
+      "https://etraffic.dgt.es/estaticosEtraffic/Iconografia/pictogramas/XE90a.png"
+    ),
   lineas: ["S.NOGUERA  9m", "LLUCMAJOR 10m", "CAMPOS   16m"],
 };
 
