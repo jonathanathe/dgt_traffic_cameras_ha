@@ -153,12 +153,14 @@ class DgtTrafficCamera(Camera):
         self._cached_at: float = 0.0
         self._fetch_lock = asyncio.Lock()
 
-        # Hora (reloj de pared, en ISO 8601) de la última vez que se
-        # confirmó con la DGT que la foto servida seguía siendo la actual
-        # (una descarga nueva, o un 304 "sin cambios"). _cached_at (arriba)
-        # es un reloj monótono para calcular intervalos, no sirve para
-        # mostrárselo al usuario como fecha.
-        self._ultima_actualizacion: str | None = None
+        # Hora (reloj de pared) de la última vez que se confirmó con la DGT
+        # que la foto servida seguía siendo la actual (una descarga nueva, o
+        # un 304 "sin cambios"). _cached_at (arriba) es un reloj monótono
+        # para calcular intervalos, no sirve para mostrárselo al usuario
+        # como fecha. I-04: datetime con zona horaria, NO un string, para
+        # que Home Assistant lo reconozca como fecha de verdad y lo formatee
+        # según la zona horaria del usuario en vez de un ISO crudo.
+        self._ultima_actualizacion: datetime | None = None
 
         # Validadores para la caché condicional. Los guarda el servidor y
         # se los devolvemos para que nos diga si la foto ha cambiado.
@@ -276,7 +278,7 @@ class DgtTrafficCamera(Camera):
             self._cached_at = ahora
             # Tanto una foto nueva como un 304 "sin cambios" cuentan como
             # confirmación de que la foto servida sigue siendo la actual.
-            self._ultima_actualizacion = datetime.now(timezone.utc).isoformat()
+            self._ultima_actualizacion = datetime.now(timezone.utc)
             if imagen is not _SIN_CAMBIOS:
                 self._cached_image = imagen
 

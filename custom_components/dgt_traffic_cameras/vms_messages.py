@@ -34,6 +34,7 @@ from __future__ import annotations
 import logging
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from .api import is_allowed_image_url
 from .const import XML_NAMESPACES
@@ -58,7 +59,11 @@ class PanelMessageState:
     pictogram_codes: list[str] = field(default_factory=list)  # de la página principal, sin los "0"
     pictogram_urls: list[str] = field(default_factory=list)  # URLs reales de la DGT para esos códigos
     off: bool = False  # ninguna página tiene texto ni pictogramas
-    last_set: str | None = None  # hora ISO del último cambio (página principal)
+    # I-04: datetime con zona horaria, NO el string ISO crudo del XML. Así
+    # Home Assistant lo reconoce como una fecha de verdad (el frontend y el
+    # Recorder lo formatean según la zona horaria del usuario) en vez de
+    # dejarlo a merced de cómo lo interprete cada consumidor del atributo.
+    last_set: datetime | None = None  # hora del último cambio (página principal)
 
 
 def parse_vms_messages(xml_bytes: bytes) -> dict[str, PanelMessageState]:
@@ -146,7 +151,10 @@ def _parse_pagina(pagina_el: ET.Element, ns: dict[str, str]) -> dict:
         }
 
     last_set_el = contenido.find(f"{{{ns['vms']}}}timeLastSet")
-    last_set = last_set_el.text.strip() if last_set_el is not None and last_set_el.text else None
+    last_set_texto = (
+        last_set_el.text.strip() if last_set_el is not None and last_set_el.text else None
+    )
+    last_set = _parsear_fecha(last_set_texto)
 
     lines: list[str] = []
     pictogram_codes: list[str] = []
@@ -206,6 +214,20 @@ def _parse_pagina(pagina_el: ET.Element, ns: dict[str, str]) -> dict:
         "pictogram_urls": pictogram_urls,
         "last_set": last_set,
     }
+
+
+def _parsear_fecha(texto: str | None) -> datetime | None:
+    """Convierte la hora ISO del XML (p.ej. "2026-09-04T10:47:55.000+02:00")
+    en un datetime con zona horaria real. Si el formato no es el esperado
+    (feed cambiado, campo corrupto), None en vez de romper el parseo entero
+    de la página por un solo dato secundario."""
+    if not texto:
+        return None
+    try:
+        return datetime.fromisoformat(texto)
+    except ValueError:
+        _LOGGER.debug("No se pudo interpretar como fecha: %r", texto)
+        return None
 
 
 def _indice_seguro(valor: str | None) -> int:

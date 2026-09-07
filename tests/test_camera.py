@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import time
 import unittest
+from datetime import datetime, timezone
 
 from ._load import load
 
@@ -71,6 +72,18 @@ class TestExtraStateAttributes(unittest.TestCase):
         self.assertEqual(atributos["provincia"], "MADRID")
         self.assertNotIn("latitude", atributos)
         self.assertNotIn("longitude", atributos)
+
+
+class TestUltimaActualizacionEsDatetime(unittest.TestCase):
+    def test_es_datetime_con_zona_horaria_no_string(self) -> None:
+        """I-04: antes se guardaba como string ISO (.isoformat()); ahora es
+        un datetime con tzinfo, para que Home Assistant lo reconozca como
+        fecha de verdad en vez de un string crudo a merced del frontend."""
+        camara = camera_mod.DgtTrafficCamera(_EntradaFalsa(), _camera_data())
+        camara._ultima_actualizacion = datetime.now(timezone.utc)
+        valor = camara.extra_state_attributes["ultima_actualizacion"]
+        self.assertIsInstance(valor, datetime)
+        self.assertIsNotNone(valor.tzinfo)
 
 
 class TestBackoff(unittest.TestCase):

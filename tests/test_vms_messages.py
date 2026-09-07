@@ -14,6 +14,7 @@ vmsControllerStatus reales completos que cubren:
 from __future__ import annotations
 
 import unittest
+from datetime import datetime
 
 from ._load import fixture_bytes, load
 
@@ -49,6 +50,15 @@ class TestParseVmsMessages(unittest.TestCase):
             },
         )
         self.assertIsNotNone(estado.last_set)
+
+    def test_last_set_es_datetime_con_zona_horaria_no_string(self) -> None:
+        """I-04: antes se exponía el string ISO crudo del XML tal cual; el
+        manejo de zona horaria quedaba a merced de cómo lo interpretara el
+        frontend. Ahora es un datetime con tzinfo, que Home Assistant
+        reconoce de forma nativa."""
+        estado = self.estados["61441"]
+        self.assertIsInstance(estado.last_set, datetime)
+        self.assertIsNotNone(estado.last_set.tzinfo)
 
     def test_panel_apagado_no_tiene_urls_de_pictograma(self) -> None:
         # El pictograma "0" (nada que mostrar) no es una URL real de icono.
@@ -157,6 +167,39 @@ class TestParseVmsMessages(unittest.TestCase):
         # como separador de líneas: sigue siendo una única línea física.
         self.assertIn("SOLO/NOMES", estado.lines)
         self.assertEqual(len(estado.lines), 4)
+
+    def test_fecha_con_formato_inesperado_no_revienta_el_parseo(self) -> None:
+        """I-04: si la DGT cambia el formato de timeLastSet, el resto del
+        panel se sigue parseando; last_set simplemente queda en None."""
+        xml = b"""<?xml version="1.0" encoding="UTF-8"?>
+<d2:payload xmlns:d2="http://levelC/schema/3/d2Payload" xmlns:vms="http://levelC/schema/3/vms" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <vms:vmsControllerStatus>
+    <vms:vmsControllerReference targetClass="vms:VmsController" id="1"/>
+    <vms:vmsStatus>
+      <vms:vmsStatus>
+        <vms:vmsMessage messageIndex="1">
+          <vms:vmsMessage>
+            <vms:timeLastSet>esto-no-es-una-fecha</vms:timeLastSet>
+            <vms:displayAreaSettings displayAreaIndex="1">
+              <vms:displayAreaSettings xsi:type="vms:TextDisplay">
+                <vms:textLine lineIndex="1">
+                  <vms:textLine>
+                    <vms:textLine>TEXTO</vms:textLine>
+                    <vms:lineFlashing>false</vms:lineFlashing>
+                  </vms:textLine>
+                </vms:textLine>
+              </vms:displayAreaSettings>
+            </vms:displayAreaSettings>
+          </vms:vmsMessage>
+        </vms:vmsMessage>
+      </vms:vmsStatus>
+    </vms:vmsStatus>
+  </vms:vmsControllerStatus>
+</d2:payload>"""
+        estados = vms_messages.parse_vms_messages(xml)
+        estado = estados["1"]
+        self.assertIsNone(estado.last_set)
+        self.assertEqual(estado.lines, ["TEXTO"])
 
     def test_texto_recortado_a_255_para_el_estado(self) -> None:
         estado = vms_messages.PanelMessageState(
