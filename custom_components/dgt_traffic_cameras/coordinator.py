@@ -14,6 +14,7 @@ en api.py.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import timedelta
 
@@ -39,6 +40,13 @@ _LOGGER = logging.getLogger(__name__)
 # recuento de qué entradas de configuración lo están usando.
 _DATA_COORDINATOR = "vms_coordinator"
 _DATA_COORDINATOR_ENTRIES = "vms_coordinator_entries"
+
+# Evita que dos entradas de paneles configurándose casi a la vez (Home
+# Assistant puede hacerlo concurrentemente) creen el coordinador o lancen
+# su primer refresco dos veces en paralelo, duplicando la descarga de ~4 MB
+# que este diseño existe precisamente para evitar. Es a nivel de módulo,
+# igual que el lock del inventario de cámaras en api.py.
+_coordinator_lock = asyncio.Lock()
 
 
 class DgtVmsMessagesCoordinator(DataUpdateCoordinator[dict[str, PanelMessageState]]):
@@ -104,31 +112,37 @@ async def async_get_or_create(hass: HomeAssistant, entry_id: str) -> DgtVmsMessa
     domain_data = hass.data.setdefault(DOMAIN, {})
     entries: set[str] = domain_data.setdefault(_DATA_COORDINATOR_ENTRIES, set())
 
-    coordinator: DgtVmsMessagesCoordinator | None = domain_data.get(_DATA_COORDINATOR)
-    if coordinator is None:
-        coordinator = DgtVmsMessagesCoordinator(hass)
-        domain_data[_DATA_COORDINATOR] = coordinator
-
-    if coordinator.data is None:
-        # Cubre dos casos con el mismo código: el coordinador se acaba de
-        # crear (primera entrada de paneles de verdad), o ya existía pero
-        # una descarga anterior falló y nunca llegó a tener datos. En
-        # ambos, un simple async_refresh() basta: no depende de ninguna
-        # ConfigEntry ni de su estado (a diferencia de
-        # async_config_entry_first_refresh(), que ya no se puede usar aquí
-        # ahora que el coordinador se crea con config_entry=None).
-        await coordinator.async_refresh()
+    # Home Assistant puede configurar varias entradas de paneles a la vez
+    # (concurrentemente, no en paralelo real, pero sí entrelazadas en el
+    # bucle de eventos). Sin este lock, dos entradas podrían ver
+    # "coordinador == None" o "coordinador.data == None" a la vez y lanzar
+    # dos descargas simultáneas del mismo fichero de ~4 MB.
+    async with _coordinator_lock:
+        coordinator: DgtVmsMessagesCoordinator | None = domain_data.get(_DATA_COORDINATOR)
+        if coordinator is None:
+            coordinator = DgtVmsMessagesCoordinator(hass)
+            domain_data[_DATA_COORDINATOR] = coordinator
 
         if coordinator.data is None:
-            # La descarga ha fallado de verdad. Igual que hacía
-            # async_config_entry_first_refresh() antes, se hace fallar el
-            # setup de esta entrada (Home Assistant reintentará solo más
-            # adelante) en vez de dejarla "cargada" sin ningún dato.
-            raise ConfigEntryNotReady(
-                "No se pudieron descargar los mensajes de los paneles de la DGT"
-            )
+            # Cubre dos casos con el mismo código: el coordinador se acaba
+            # de crear (primera entrada de paneles de verdad), o ya existía
+            # pero una descarga anterior falló y nunca llegó a tener datos.
+            # En ambos, un simple async_refresh() basta: no depende de
+            # ninguna ConfigEntry ni de su estado (a diferencia de
+            # async_config_entry_first_refresh(), que ya no se puede usar
+            # aquí ahora que el coordinador se crea con config_entry=None).
+            await coordinator.async_refresh()
 
-    entries.add(entry_id)
+            if coordinator.data is None:
+                # La descarga ha fallado de verdad. Igual que hacía
+                # async_config_entry_first_refresh() antes, se hace fallar
+                # el setup de esta entrada (Home Assistant reintentará solo
+                # más adelante) en vez de dejarla "cargada" sin ningún dato.
+                raise ConfigEntryNotReady(
+                    "No se pudieron descargar los mensajes de los paneles de la DGT"
+                )
+
+        entries.add(entry_id)
     return coordinator
 
 

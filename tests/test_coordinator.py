@@ -14,6 +14,7 @@ registra sola para apagarse cuando ESA entrada se descargue.
 
 from __future__ import annotations
 
+import asyncio
 import unittest
 
 from ._load import load
@@ -90,6 +91,11 @@ class TestAsyncGetOrCreate(unittest.IsolatedAsyncioTestCase):
 
         async def descarga_falsa(*args, **kwargs):
             self.descargas_realizadas += 1
+            # Cede el control al bucle de eventos a propósito: sin esto, dos
+            # llamadas "simultáneas" (asyncio.gather) nunca llegarían a
+            # entrelazarse de verdad en un test tan rápido, y el test de
+            # concurrencia (M-03) no probaría nada real.
+            await asyncio.sleep(0)
             if self.forzar_fallo:
                 raise TimeoutError("simulado")
             return b"<xml/>"
@@ -121,6 +127,23 @@ class TestAsyncGetOrCreate(unittest.IsolatedAsyncioTestCase):
         c2 = await coordinator_mod.async_get_or_create(hass, "entrada_2")
         self.assertIs(c1, c2)
         # Con datos ya presentes, la segunda llamada NO debe volver a descargar.
+        self.assertEqual(self.descargas_realizadas, 1)
+
+    async def test_dos_entradas_simultaneas_solo_descargan_una_vez(self) -> None:
+        """M-03: dos entradas configurándose a la vez no deben duplicar la descarga.
+
+        Sin el lock, ambas llamadas verían "coordinador == None" (o "sin
+        datos") al mismo tiempo, cada una lanzaría su propio async_refresh(),
+        y se descargarían los ~4 MB del fichero de mensajes dos veces.
+        """
+        hass = _HassFalso()
+
+        c1, c2 = await asyncio.gather(
+            coordinator_mod.async_get_or_create(hass, "entrada_1"),
+            coordinator_mod.async_get_or_create(hass, "entrada_2"),
+        )
+
+        self.assertIs(c1, c2)
         self.assertEqual(self.descargas_realizadas, 1)
 
     async def test_fallo_en_la_primera_descarga_lanza_config_entry_not_ready(self) -> None:
