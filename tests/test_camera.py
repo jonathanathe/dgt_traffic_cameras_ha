@@ -8,11 +8,13 @@ siempre porque _cached_image nunca se invalida).
 
 from __future__ import annotations
 
+import time
 import unittest
 
 from ._load import load
 
 camera_mod = load("camera")
+const_mod = load("const")
 
 
 def _camera_data(**overrides) -> dict:
@@ -69,6 +71,28 @@ class TestExtraStateAttributes(unittest.TestCase):
         self.assertEqual(atributos["provincia"], "MADRID")
         self.assertNotIn("latitude", atributos)
         self.assertNotIn("longitude", atributos)
+
+
+class TestBackoff(unittest.TestCase):
+    def test_espera_se_satura_en_backoff_max_seconds(self) -> None:
+        """L-03: tras muchos fallos, la espera sigue acotada a
+        BACKOFF_MAX_SECONDS (antes, el exponente crecía sin límite y
+        calculaba un entero enorme en cada fallo, solo para descartarlo)."""
+        camara = camera_mod.DgtTrafficCamera(_EntradaFalsa(), _camera_data())
+        for _ in range(500):
+            camara._registrar_fallo()
+
+        espera = camara._reintentar_a_partir_de - time.monotonic()
+        self.assertLessEqual(espera, const_mod.BACKOFF_MAX_SECONDS)
+        self.assertGreater(espera, const_mod.BACKOFF_MAX_SECONDS - 5)
+
+    def test_fallos_consecutivos_sigue_contando_de_verdad(self) -> None:
+        """El contador en sí (para el log "fallo nº%d") no se toca, solo
+        el exponente usado internamente para calcular la espera."""
+        camara = camera_mod.DgtTrafficCamera(_EntradaFalsa(), _camera_data())
+        for _ in range(15):
+            camara._registrar_fallo()
+        self.assertEqual(camara._fallos_consecutivos, 15)
 
 
 class TestNombreEntidad(unittest.TestCase):

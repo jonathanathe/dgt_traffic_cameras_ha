@@ -208,9 +208,16 @@ class DgtTrafficCamera(Camera):
         la última foto buena sin tocar la red.
         """
         self._fallos_consecutivos += 1
+        # El exponente se acota a propósito: a partir de unos pocos fallos
+        # (BACKOFF_INITIAL_SECONDS * 2^n ya supera BACKOFF_MAX_SECONDS con
+        # n de un dígito), el min() de abajo lo recorta siempre al mismo
+        # tope. Sin este límite, una cámara rota durante meses acabaría
+        # calculando 2 elevado a varios miles cada vez que fallara -- un
+        # entero gigantesco calculado solo para tirarlo, ya que el min()
+        # se queda con BACKOFF_MAX_SECONDS de todas formas.
+        exponente = min(self._fallos_consecutivos - 1, 10)
         espera = min(
-            BACKOFF_INITIAL_SECONDS
-            * (BACKOFF_MULTIPLIER ** (self._fallos_consecutivos - 1)),
+            BACKOFF_INITIAL_SECONDS * (BACKOFF_MULTIPLIER**exponente),
             BACKOFF_MAX_SECONDS,
         )
         self._reintentar_a_partir_de = time.monotonic() + espera
