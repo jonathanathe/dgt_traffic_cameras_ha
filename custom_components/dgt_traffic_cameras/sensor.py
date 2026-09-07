@@ -46,6 +46,10 @@ async def async_setup_entry(
         # No debería pasar nunca (async_setup_entry en __init__.py lo deja
         # preparado justo antes de reenviar aquí), pero si pasara, un
         # KeyError a secas no dice nada útil sobre la causa real.
+        _LOGGER.error(
+            "No se encontró el coordinador de mensajes para la entrada %s",
+            entry.entry_id,
+        )
         raise RuntimeError(
             f"No se encontró el coordinador de mensajes para la entrada "
             f"{entry.entry_id!r}; ¿se está configurando esta plataforma "
