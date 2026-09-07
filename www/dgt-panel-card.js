@@ -47,6 +47,10 @@ class DgtPanelCard extends HTMLElement {
     // Lovelace pueda mostrar una vista previa en vivo antes de elegirla.
     this._config = config || {};
     this._construida = false;
+    // Reinicia la comparación de I-05: si se reconfigura la entidad (o se
+    // quita), el próximo _actualizar() no debe saltarse el pintado solo
+    // porque el objeto de estado coincida por casualidad con el de antes.
+    this._estadoAnterior = undefined;
   }
 
   getCardSize() {
@@ -179,6 +183,17 @@ class DgtPanelCard extends HTMLElement {
         this._elTexto.textContent = `Entidad no encontrada: ${entityId}`;
         return;
       }
+      // I-05: el setter "hass" de la tarjeta se llama en cada actualización
+      // del store de Home Assistant, no solo cuando ESTA entidad cambia
+      // (puede haber decenas por segundo en una instancia con actividad).
+      // Home Assistant sustituye el objeto de estado entero cuando una
+      // entidad cambia y reutiliza el mismo objeto si no ha cambiado, así
+      // que comparar por referencia basta para saber si de verdad hay
+      // trabajo que hacer, sin necesitar comparar atributo a atributo.
+      if (estado === this._estadoAnterior) {
+        return;
+      }
+      this._estadoAnterior = estado;
       atributos = estado.attributes || {};
     }
 
