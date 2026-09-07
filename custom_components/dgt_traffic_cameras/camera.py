@@ -121,19 +121,22 @@ class DgtTrafficCamera(Camera):
         # dispositivo (que ya incluye la carretera). Ver short_entity_name.
         self._attr_name = short_entity_name(camera_data)
 
-        self._static_attributes: dict = {}
+        # Igual que sensor.py: los atributos de ubicación se exponen
+        # SIEMPRE, tenga o no coordenadas la cámara (antes, sin
+        # latitude/longitude, no se exponía ningún atributo en absoluto,
+        # inconsistente con cómo ya se comportaban los paneles).
+        self._static_attributes: dict = {
+            "carretera": camera_data.get("road_name"),
+            "sentido_hacia": camera_data.get("road_destination"),
+            "provincia": camera_data.get("province"),
+            "punto_kilometrico": camera_data.get("kilometer_point"),
+        }
         if (
             camera_data.get("latitude") is not None
             and camera_data.get("longitude") is not None
         ):
-            self._static_attributes = {
-                "carretera": camera_data.get("road_name"),
-                "sentido_hacia": camera_data.get("road_destination"),
-                "provincia": camera_data.get("province"),
-                "punto_kilometrico": camera_data.get("kilometer_point"),
-                "latitude": camera_data.get("latitude"),
-                "longitude": camera_data.get("longitude"),
-            }
+            self._static_attributes["latitude"] = camera_data.get("latitude")
+            self._static_attributes["longitude"] = camera_data.get("longitude")
 
         # Agrupa todas las cámaras de esta ConfigEntry bajo un mismo
         # "dispositivo" en Home Assistant.

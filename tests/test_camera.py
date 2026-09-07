@@ -56,6 +56,20 @@ class TestExtraStateAttributes(unittest.TestCase):
         camara = camera_mod.DgtTrafficCamera(_EntradaFalsa(), datos)
         self.assertIn("ultima_actualizacion", camara.extra_state_attributes)
 
+    def test_atributos_de_ubicacion_presentes_incluso_sin_coordenadas(self) -> None:
+        """L-02: antes, sin latitude/longitude, no se exponía carretera/
+        provincia/etc. Debe comportarse igual que sensor.py, que siempre
+        los expone."""
+        datos = _camera_data()
+        del datos["latitude"]
+        del datos["longitude"]
+        camara = camera_mod.DgtTrafficCamera(_EntradaFalsa(), datos)
+        atributos = camara.extra_state_attributes
+        self.assertEqual(atributos["carretera"], "A-1")
+        self.assertEqual(atributos["provincia"], "MADRID")
+        self.assertNotIn("latitude", atributos)
+        self.assertNotIn("longitude", atributos)
+
 
 class TestNombreEntidad(unittest.TestCase):
     def test_nombre_no_repite_la_carretera(self) -> None:
