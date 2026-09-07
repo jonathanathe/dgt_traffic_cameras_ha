@@ -61,6 +61,8 @@ A partir de ahí el asistente es igual para los dos tipos:
 
 Cada combinación de provincia + carretera + tipo crea una entrada propia, que agrupa sus dispositivos bajo un mismo dispositivo de Home Assistant. Una misma entrada nunca mezcla cámaras y paneles.
 
+**Al añadir una entrada de paneles por primera vez, puede tardar unos segundos (normalmente 5-15s) en terminar de cargar.** Antes de crear las entidades, se descarga y procesa el fichero de mensajes de todos los paneles de España (~4 MB); es intencionado — así, si esa primera descarga fallara, Home Assistant lo detecta y reintenta solo en vez de dejar la entrada creada sin ningún dato. Las siguientes veces no hace falta esperar: esa descarga se comparte entre todas las entradas de paneles y se repite sola cada 5 minutos en segundo plano.
+
 ### Añadir o quitar dispositivos de una entrada ya creada
 
 Usa el botón de **Opciones** (el engranaje) de esa entrada. Si es una entrada de cámaras, te ofrece **Añadir cámaras** / **Quitar cámaras**; si es de paneles, **Añadir paneles** / **Quitar paneles**. Para una carretera o provincia distinta, añade una nueva entrada desde cero.
