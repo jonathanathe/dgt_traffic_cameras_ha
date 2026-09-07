@@ -26,6 +26,7 @@ import hashlib
 import io
 import logging
 import time
+from datetime import datetime, timezone
 
 from homeassistant.components.camera import Camera, CameraEntityFeature
 from homeassistant.config_entries import ConfigEntry
@@ -117,11 +118,12 @@ class DgtTrafficCamera(Camera):
         self._attr_unique_id = f"{entry.entry_id}_{device_id}"
         self._attr_name = camera_data.get("name") or f"Cámara DGT {device_id}"
 
+        self._static_attributes: dict = {}
         if (
             camera_data.get("latitude") is not None
             and camera_data.get("longitude") is not None
         ):
-            self._attr_extra_state_attributes = {
+            self._static_attributes = {
                 "carretera": camera_data.get("road_name"),
                 "sentido_hacia": camera_data.get("road_destination"),
                 "provincia": camera_data.get("province"),
@@ -144,6 +146,13 @@ class DgtTrafficCamera(Camera):
         self._cached_image: bytes | None = None
         self._cached_at: float = 0.0
         self._fetch_lock = asyncio.Lock()
+
+        # Hora (reloj de pared, en ISO 8601) de la última vez que se
+        # confirmó con la DGT que la foto servida seguía siendo la actual
+        # (una descarga nueva, o un 304 "sin cambios"). _cached_at (arriba)
+        # es un reloj monótono para calcular intervalos, no sirve para
+        # mostrárselo al usuario como fecha.
+        self._ultima_actualizacion: str | None = None
 
         # Validadores para la caché condicional. Los guarda el servidor y
         # se los devolvemos para que nos diga si la foto ha cambiado.
@@ -172,6 +181,18 @@ class DgtTrafficCamera(Camera):
         lugar de marcarla claramente como no disponible.
         """
         return self._cached_image is not None
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Atributos fijos de ubicación + cuándo se confirmó la foto por última vez.
+
+        "ultima_actualizacion" existe para que se note cuándo una cámara
+        lleva tiempo sirviendo la misma foto vieja (p.ej. una cámara
+        averiada que sigue "available" porque nunca se invalida la última
+        foto buena): antes no había ninguna forma de distinguir eso de una
+        foto de hace un minuto con solo mirar la entidad.
+        """
+        return {**self._static_attributes, "ultima_actualizacion": self._ultima_actualizacion}
 
     def _registrar_fallo(self) -> None:
         """Aumenta el contador de fallos y calcula cuándo reintentar.
@@ -240,6 +261,9 @@ class DgtTrafficCamera(Camera):
 
             self._registrar_exito()
             self._cached_at = ahora
+            # Tanto una foto nueva como un 304 "sin cambios" cuentan como
+            # confirmación de que la foto servida sigue siendo la actual.
+            self._ultima_actualizacion = datetime.now(timezone.utc).isoformat()
             if imagen is not _SIN_CAMBIOS:
                 self._cached_image = imagen
 

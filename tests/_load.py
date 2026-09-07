@@ -150,6 +150,20 @@ def _ensure_stubs() -> None:
 
         sensor_mod.SensorEntity = SensorEntity
 
+    if "homeassistant.components.camera" not in sys.modules:
+        camera_mod = _module("homeassistant.components.camera")
+        import enum
+
+        class Camera:  # noqa: D401 - stub
+            def __init__(self):
+                pass
+
+        class CameraEntityFeature(enum.IntFlag):
+            STREAM = 1
+
+        camera_mod.Camera = Camera
+        camera_mod.CameraEntityFeature = CameraEntityFeature
+
     if "homeassistant.helpers.entity" not in sys.modules:
         entity_mod = _module("homeassistant.helpers.entity")
 
