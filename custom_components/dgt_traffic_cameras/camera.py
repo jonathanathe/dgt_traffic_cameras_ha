@@ -505,5 +505,3 @@ def _es_imagen_no_disponible(datos: bytes) -> bool:
 
     distancia = bin(hash_actual ^ PLACEHOLDER_IMAGE_AHASH).count("1")
     return distancia <= PLACEHOLDER_IMAGE_AHASH_MAX_DISTANCE
-
-    return False
