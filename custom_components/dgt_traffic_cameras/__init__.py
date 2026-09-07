@@ -99,29 +99,53 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Descarga una entrada (elimina sus entidades)."""
+    """Descarga una entrada (elimina sus entidades).
+
+    OJO: esto se ejecuta también en cada RECARGA de la entrada (añadir o
+    quitar un dispositivo, activar el interruptor de mapa...), no solo
+    cuando el usuario la borra de verdad. Por eso aquí SOLO se hace la
+    limpieza que es correcta repetir en cada recarga (la huella, que se
+    vuelve a rellenar en el siguiente async_setup_entry). Lo que solo tiene
+    sentido al borrar la entrada para siempre —soltar el coordinador de
+    paneles y las cachés de inventario/ubicaciones— vive en
+    async_remove_entry, que Home Assistant solo llama en un borrado real.
+    """
     descargada = await hass.config_entries.async_unload_platforms(
         entry, _platforms_for_entry(entry)
     )
 
     if descargada:
-        domain_data = hass.data.get(DOMAIN, {})
-        huellas = domain_data.get(_HUELLAS, {})
+        huellas = hass.data.get(DOMAIN, {}).get(_HUELLAS, {})
         huellas.pop(entry.entry_id, None)
 
-        if entry.data.get(CONF_DEVICE_TYPE) == DEVICE_TYPE_VMS:
-            domain_data.get("vms_coordinator_by_entry", {}).pop(entry.entry_id, None)
-            await vms_coordinator.async_release(hass, entry.entry_id)
-
-        # Si ya no queda ninguna entrada de esta integración, soltamos los
-        # datos guardados en memoria (varios MB) en lugar de dejarlos
-        # ocupando sitio para siempre.
-        if not huellas:
-            clear_inventory_cache()
-            clear_vms_locations_cache()
-            hass.data.pop(DOMAIN, None)
-
     return descargada
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Se ejecuta solo cuando esta entrada se BORRA de verdad (nunca en una recarga).
+
+    Antes, esta limpieza vivía en async_unload_entry, que también se
+    ejecuta en cada recarga: si solo había una entrada, cada vez que se
+    añadía o quitaba un dispositivo se destruían y volvían a descargar
+    tanto el inventario de cámaras/ubicaciones de paneles (varios MB) como
+    el coordinador compartido de mensajes de paneles, aunque la entrada
+    siguiera existiendo un instante después.
+    """
+    if entry.data.get(CONF_DEVICE_TYPE) == DEVICE_TYPE_VMS:
+        hass.data.get(DOMAIN, {}).get("vms_coordinator_by_entry", {}).pop(
+            entry.entry_id, None
+        )
+        await vms_coordinator.async_release(hass, entry.entry_id)
+
+    # Si ya no queda ninguna entrada de esta integración, soltamos los
+    # datos guardados en memoria (varios MB) en lugar de dejarlos ocupando
+    # sitio para siempre. async_unload_entry ya quitó la huella de esta
+    # entrada antes de llegar aquí, así que "vacío" es fiable.
+    huellas = hass.data.get(DOMAIN, {}).get(_HUELLAS, {})
+    if not huellas:
+        clear_inventory_cache()
+        clear_vms_locations_cache()
+        hass.data.pop(DOMAIN, None)
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
