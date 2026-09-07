@@ -268,9 +268,32 @@ PLACEHOLDER_IMAGE_SHA256_HASHES = frozenset(
         # que además del hash exacto (rápido, pero solo pilla variantes ya
         # vistas) se comprueba también un hash "perceptual" más abajo, que
         # detecta cualquier otra variante nueva sin tener que añadirla aquí.
-        "3b6ace4fb0afcd5eeae11ec27659946fa2028b3fc87ec5fd1878a3057e71b1d",
+        "3b6ace4fb0afcd5eeae11ec27659946fa2028b3fc87ec5fd1878a3057e71b1de",
     }
 )
+
+
+def _validar_hashes_sha256(hashes: frozenset[str]) -> None:
+    """Comprueba que cada entrada mide 64 caracteres hexadecimales.
+
+    POR QUÉ ESTO EXISTE: un hash SHA-256 recortado o mal transcrito (un
+    solo carácter de más o de menos) no da ningún error visible en ningún
+    sitio; simplemente deja de coincidir NUNCA con nada, y la detección de
+    la imagen "no disponible" se degrada en silencio a solo el hash
+    perceptual. Ya ha pasado una vez (auditoría del 2026-09-07: faltaba la
+    última "e" de uno de los hashes de arriba). Fallar aquí, al cargar el
+    módulo, convierte ese error en algo imposible de pasar por alto.
+    """
+    for hash_ in hashes:
+        if len(hash_) != 64 or not all(c in "0123456789abcdef" for c in hash_):
+            raise ValueError(
+                f"PLACEHOLDER_IMAGE_SHA256_HASHES contiene un hash inválido "
+                f"(longitud {len(hash_)}, se esperaban 64 caracteres "
+                f"hexadecimales en minúsculas): {hash_!r}"
+            )
+
+
+_validar_hashes_sha256(PLACEHOLDER_IMAGE_SHA256_HASHES)
 
 # Hash perceptual (aHash de 16x16 en escala de grises) de la imagen de "no
 # disponible" de arriba. A diferencia del SHA-256, es el mismo aunque el
