@@ -173,10 +173,17 @@ class DgtPanelSensor(CoordinatorEntity[DgtVmsMessagesCoordinator], SensorEntity)
             atributos["ultimo_cambio"] = None
             return atributos
 
+        # list(...) copia las listas en vez de entregar las mismas que
+        # guarda el coordinador: ese objeto PanelMessageState es
+        # compartido (es literalmente el que hay en coordinator.data, no
+        # una copia por entidad), así que devolver las listas tal cual
+        # dejaría que cualquier código que las tocara desde fuera (el
+        # propio frontend, por ejemplo) pudiera acabar mutando sin querer
+        # el estado interno del coordinador.
         atributos["texto_completo"] = estado.text_full
-        atributos["lineas"] = estado.lines
-        atributos["otras_paginas"] = estado.other_pages
-        atributos["pictogramas"] = estado.pictogram_codes
+        atributos["lineas"] = list(estado.lines)
+        atributos["otras_paginas"] = list(estado.other_pages)
+        atributos["pictogramas"] = list(estado.pictogram_codes)
         atributos["apagado"] = estado.off
         atributos["ultimo_cambio"] = estado.last_set
         return atributos

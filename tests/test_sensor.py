@@ -101,5 +101,26 @@ class TestNombreEntidad(unittest.TestCase):
         self.assertNotIn("A-54", sensor._attr_name)
 
 
+class TestNoSeMutaElEstadoCompartido(unittest.TestCase):
+    def test_mutar_las_lineas_del_atributo_no_toca_el_estado_del_coordinador(
+        self,
+    ) -> None:
+        """I-03: extra_state_attributes debe devolver COPIAS de las listas
+        del PanelMessageState, no las mismas que guarda el coordinador."""
+        estado = vms_messages_mod.PanelMessageState(
+            device_id="167938",
+            text="X",
+            text_full="X",
+            lines=["UNO", "DOS"],
+            off=False,
+        )
+        sensor = _crear_sensor({"167938": estado})
+
+        atributos = sensor.extra_state_attributes
+        atributos["lineas"].append("TRES (colado desde fuera)")
+
+        self.assertEqual(estado.lines, ["UNO", "DOS"])
+
+
 if __name__ == "__main__":
     unittest.main()
