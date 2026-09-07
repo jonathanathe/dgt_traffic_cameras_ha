@@ -115,7 +115,20 @@ def parse_vms_messages(xml_bytes: bytes) -> dict[str, PanelMessageState]:
             last_set=principal["last_set"],
         )
 
-    _LOGGER.debug("Mensajes de paneles DGT: %d paneles con estado", len(estados))
+    if not estados:
+        # Un fichero de mensajes real de la DGT trae miles de paneles; que
+        # salga vacío casi seguro no es "ningún panel tiene nada que
+        # decir" (con los que hay en España, sería una casualidad enorme),
+        # sino que el formato del feed ha cambiado y el parseo ya no
+        # encuentra lo que espera. Sin este aviso, esto se confundiría en
+        # silencio con "los paneles configurados no están emitiendo".
+        _LOGGER.warning(
+            "El fichero de mensajes de paneles de la DGT se ha parseado sin "
+            "encontrar ningún panel con datos. Puede que la DGT haya cambiado "
+            "el formato del feed; revisa si esto persiste."
+        )
+    else:
+        _LOGGER.debug("Mensajes de paneles DGT: %d paneles con estado", len(estados))
     return estados
 
 

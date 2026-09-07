@@ -130,6 +130,17 @@ class TestParseVmsMessages(unittest.TestCase):
         # el resultado debe respetar el índice, no el orden del XML.
         self.assertEqual(estado.lines, ["PRIMERO", "SEGUNDO"])
 
+    def test_feed_sin_ningun_panel_avisa_con_warning(self) -> None:
+        """M-09: un XML válido pero sin ningún panel probablemente significa
+        que la DGT cambió el formato del feed, no que nadie emite nada."""
+        xml = b"""<?xml version="1.0" encoding="UTF-8"?>
+<d2:payload xmlns:d2="http://levelC/schema/3/d2Payload" xmlns:vms="http://levelC/schema/3/vms">
+</d2:payload>"""
+        with self.assertLogs(vms_messages.__name__, level="WARNING") as registro:
+            estados = vms_messages.parse_vms_messages(xml)
+        self.assertEqual(estados, {})
+        self.assertTrue(any("formato del feed" in linea for linea in registro.output))
+
     def test_pagina_secundaria_con_contenido_distinto(self) -> None:
         estado = self.estados["61459"]
         self.assertFalse(estado.off)
