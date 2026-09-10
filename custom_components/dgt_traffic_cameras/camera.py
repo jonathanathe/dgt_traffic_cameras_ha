@@ -42,6 +42,8 @@ from .const import (
     BACKOFF_MAX_SECONDS,
     BACKOFF_MULTIPLIER,
     CONF_CAMERAS,
+    CONF_SHOW_ON_MAP,
+    CONF_SHOW_ON_MAP_DEFAULT,
     DOMAIN,
     FRAME_INTERVAL_SECONDS,
     HTTP_TIMEOUT_SECONDS,
@@ -131,8 +133,17 @@ class DgtTrafficCamera(Camera):
             "provincia": camera_data.get("province"),
             "punto_kilometrico": camera_data.get("kilometer_point"),
         }
+        # El mapa nativo de Home Assistant pinta un punto por cada entidad
+        # que tenga latitude/longitude, sea cual sea su dominio, sin
+        # necesitar ninguna tarjeta de Mapa de por medio. CONF_SHOW_ON_MAP
+        # es POR DISPOSITIVO (se pregunta al añadirlo, se cambia después
+        # desde Opciones): vive en camera_data, no en las options de la
+        # entrada. Es la única forma real de ocultar esta cámara concreta
+        # del mapa: si el atributo no existe, no hay nada que pintar.
+        mostrar_en_mapa = camera_data.get(CONF_SHOW_ON_MAP, CONF_SHOW_ON_MAP_DEFAULT)
         if (
-            camera_data.get("latitude") is not None
+            mostrar_en_mapa
+            and camera_data.get("latitude") is not None
             and camera_data.get("longitude") is not None
         ):
             self._static_attributes["latitude"] = camera_data.get("latitude")
@@ -172,6 +183,28 @@ class DgtTrafficCamera(Camera):
         # permite volver a intentarlo.
         self._fallos_consecutivos = 0
         self._reintentar_a_partir_de: float = 0.0
+
+    async def async_added_to_hass(self) -> None:
+        """Pide una foto en cuanto la entidad se crea, sin esperar a que la pida nadie.
+
+        Sin esto, una cámara recién creada (o recreada al RECARGAR la
+        entrada: añadir/quitar dispositivos, o cambiar el interruptor de
+        "mostrar en el mapa" de config_flow.py) arranca con
+        _cached_image=None -> available=False, y se queda así hasta que
+        algo pida su foto de verdad (normalmente, un dashboard que la esté
+        mostrando en ese momento). Mientras tanto desaparece de cualquier
+        sitio que dependa de la entidad estando "available" -- en
+        particular, el mapa nativo de Home Assistant no pinta entidades no
+        disponibles, así que unas coordenadas correctas en
+        extra_state_attributes no sirven de nada si la cámara nunca llega
+        a tener su primera foto.
+        Se lanza como tarea de fondo (no se espera aquí) para no retrasar
+        el arranque de toda la plataforma si hay muchas cámaras a la vez;
+        cada una gestiona su propio caché/backoff igual que si la hubiera
+        pedido un dashboard.
+        """
+        await super().async_added_to_hass()
+        self.hass.async_create_task(self.async_camera_image())
 
     @property
     def frame_interval(self) -> float:

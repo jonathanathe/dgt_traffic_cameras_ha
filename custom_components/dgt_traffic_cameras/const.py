@@ -101,9 +101,22 @@ CONF_DEVICE_TYPE = "device_type"
 DEVICE_TYPE_CAMERA = "camera"
 DEVICE_TYPE_VMS = "vms"
 
-# Clave usada dentro de config_entry.OPTIONS (no .data) para el interruptor
-# de "mostrar en el mapa" de Home Assistant.
+# Clave usada dentro de cada dispositivo (un dict de CONF_CAMERAS o
+# CONF_PANELS, en config_entry.DATA, no .options) para el interruptor de
+# "mostrar en el mapa" de Home Assistant: si está activado, la entidad de
+# ESE dispositivo concreto expone latitude/longitude como atributo (el mapa
+# nativo de HA pinta un punto por cada entidad con esos dos atributos,
+# aunque no haya ninguna tarjeta de Mapa de por medio). Es POR DISPOSITIVO,
+# no global: cada cámara o panel tiene su propio valor.
+#
+# Se pregunta al añadir el dispositivo (config_flow.py) y se puede cambiar
+# después desde Opciones. Por defecto activado (True): un dispositivo
+# guardado antes de que existiera esta clave no la tiene en su dict, y
+# CONF_SHOW_ON_MAP_DEFAULT es lo que se usa entonces — así, antes de que
+# existiera este interruptor, las coordenadas siempre se exponían sin
+# condición alguna, y True es lo que no cambia nada para esos dispositivos.
 CONF_SHOW_ON_MAP = "show_on_map"
+CONF_SHOW_ON_MAP_DEFAULT = True
 
 # ---------------------------------------------------------------------------
 # Control de frecuencia de peticiones (lo importante para no ser bloqueados)

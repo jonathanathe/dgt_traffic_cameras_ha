@@ -22,7 +22,9 @@ class _CoordinatorFalso:
         self.data = data
 
 
-def _crear_sensor(coordinator_data: dict | None) -> "sensor_mod.DgtPanelSensor":
+def _crear_sensor(
+    coordinator_data: dict | None, panel_data_overrides: dict | None = None
+) -> "sensor_mod.DgtPanelSensor":
     coordinator = _CoordinatorFalso(coordinator_data)
     entry = type("EntradaFalsa", (), {"entry_id": "entry1", "title": "DGT PMV · Test"})()
     panel_data = {
@@ -32,7 +34,10 @@ def _crear_sensor(coordinator_data: dict | None) -> "sensor_mod.DgtPanelSensor":
         "road_destination": "LUGO",
         "province": "LUGO",
         "kilometer_point": "0.65",
+        "latitude": 43.0,
+        "longitude": -7.5,
     }
+    panel_data.update(panel_data_overrides or {})
     return sensor_mod.DgtPanelSensor(coordinator, entry, panel_data)
 
 
@@ -145,6 +150,32 @@ class TestNoSeMutaElEstadoCompartido(unittest.TestCase):
         atributos["lineas"].append("TRES (colado desde fuera)")
 
         self.assertEqual(estado.lines, ["UNO", "DOS"])
+
+
+class TestInterruptorDeMapa(unittest.TestCase):
+    def test_coordenadas_presentes_por_defecto(self) -> None:
+        sensor = _crear_sensor({})
+        atributos = sensor.extra_state_attributes
+        self.assertEqual(atributos["latitude"], 43.0)
+        self.assertEqual(atributos["longitude"], -7.5)
+
+    def test_coordenadas_ocultas_si_el_interruptor_de_mapa_esta_desactivado(self) -> None:
+        """CONF_SHOW_ON_MAP es POR DISPOSITIVO: vive en panel_data, no en
+        las options de la entrada."""
+        sensor = _crear_sensor({}, {const_mod.CONF_SHOW_ON_MAP: False})
+        atributos = sensor.extra_state_attributes
+        self.assertNotIn("latitude", atributos)
+        self.assertNotIn("longitude", atributos)
+        # El resto de atributos se sigue exponiendo igual.
+        self.assertEqual(atributos["carretera"], "A-54")
+
+    def test_coordenadas_presentes_si_el_interruptor_de_mapa_esta_activado_explicitamente(
+        self,
+    ) -> None:
+        sensor = _crear_sensor({}, {const_mod.CONF_SHOW_ON_MAP: True})
+        atributos = sensor.extra_state_attributes
+        self.assertEqual(atributos["latitude"], 43.0)
+        self.assertEqual(atributos["longitude"], -7.5)
 
 
 if __name__ == "__main__":

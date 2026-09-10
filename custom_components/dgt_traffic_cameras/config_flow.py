@@ -45,6 +45,8 @@ from .const import (
     CONF_CAMERAS,
     CONF_DEVICE_TYPE,
     CONF_PANELS,
+    CONF_SHOW_ON_MAP,
+    CONF_SHOW_ON_MAP_DEFAULT,
     DEVICE_TYPE_VMS,
     DOMAIN,
 )
@@ -146,6 +148,12 @@ class DgtTrafficCamerasConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._all_panels: list[DgtPanelLocation] = []
         self._province: str | None = None
         self._road: str | None = None
+        # Dispositivos ya elegidos con casillas, a la espera de que el
+        # usuario conteste la pregunta de "mostrar en el mapa" antes de
+        # crear la entrada de verdad (ver async_step_camera_map /
+        # async_step_panel_map).
+        self._pending_cameras: list[dict[str, Any]] | None = None
+        self._pending_panels: list[dict[str, Any]] | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -241,6 +249,29 @@ class DgtTrafficCamerasConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     data_schema=_cameras_schema(candidates),
                     errors={"base": "no_cameras_selected"},
                 )
+            self._pending_cameras = selected
+            return await self.async_step_camera_map()
+
+        return self.async_show_form(
+            step_id="cameras", data_schema=_cameras_schema(candidates)
+        )
+
+    async def async_step_camera_map(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Última pregunta antes de crear la entrada: ¿se ven en el mapa?
+
+        Se aplica por igual a todas las cámaras elegidas en este mismo
+        asistente (no una pregunta por cámara, sería inmanejable con
+        varias docenas marcadas a la vez). CONF_SHOW_ON_MAP se guarda
+        dentro de cada dict de cámara, así que luego se puede cambiar
+        cámara a cámara desde Opciones.
+        """
+        if user_input is not None:
+            mostrar_en_mapa = user_input[CONF_SHOW_ON_MAP]
+            for camera_data in self._pending_cameras:
+                camera_data[CONF_SHOW_ON_MAP] = mostrar_en_mapa
+
             # Marcamos la entrada con un identificador único basado en
             # provincia + carretera. Si el usuario intenta añadir otra vez
             # esa misma combinación, Home Assistant lo detecta y aborta en
@@ -256,11 +287,11 @@ class DgtTrafficCamerasConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             title = f"DGT · {self._province.title()} · {self._road}"
             return self.async_create_entry(
                 title=title,
-                data={CONF_CAMERAS: selected},
+                data={CONF_CAMERAS: self._pending_cameras},
             )
 
         return self.async_show_form(
-            step_id="cameras", data_schema=_cameras_schema(candidates)
+            step_id="camera_map", data_schema=_show_on_map_schema()
         )
 
     # --- Flujo de paneles (PMV) ----------------------------------------------
@@ -328,6 +359,21 @@ class DgtTrafficCamerasConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     data_schema=_panels_schema(candidates),
                     errors={"base": "no_panels_selected"},
                 )
+            self._pending_panels = selected
+            return await self.async_step_panel_map()
+
+        return self.async_show_form(
+            step_id="panels", data_schema=_panels_schema(candidates)
+        )
+
+    async def async_step_panel_map(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Ver el comentario de async_step_camera_map: mismo mecanismo para paneles."""
+        if user_input is not None:
+            mostrar_en_mapa = user_input[CONF_SHOW_ON_MAP]
+            for panel_data in self._pending_panels:
+                panel_data[CONF_SHOW_ON_MAP] = mostrar_en_mapa
 
             # Prefijo "panel_" para que el identificador único nunca choque
             # con el de una entrada de cámaras de la misma provincia y
@@ -339,11 +385,11 @@ class DgtTrafficCamerasConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             title = f"DGT PMV · {self._province.title()} · {self._road}"
             return self.async_create_entry(
                 title=title,
-                data={CONF_DEVICE_TYPE: DEVICE_TYPE_VMS, CONF_PANELS: selected},
+                data={CONF_DEVICE_TYPE: DEVICE_TYPE_VMS, CONF_PANELS: self._pending_panels},
             )
 
         return self.async_show_form(
-            step_id="panels", data_schema=_panels_schema(candidates)
+            step_id="panel_map", data_schema=_show_on_map_schema()
         )
 
     @staticmethod
@@ -376,17 +422,131 @@ class DgtTrafficCamerasOptionsFlow(config_entries.OptionsFlow):
         self._all_panels: list[DgtPanelLocation] = []
         self._province: str | None = None
         self._road: str | None = None
+        # Ver el comentario equivalente en DgtTrafficCamerasConfigFlow.
+        self._pending_cameras: list[dict[str, Any]] | None = None
+        self._pending_panels: list[dict[str, Any]] | None = None
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         if self.config_entry.data.get(CONF_DEVICE_TYPE) == DEVICE_TYPE_VMS:
             return self.async_show_menu(
-                step_id="init", menu_options=["add_panels", "remove_panels"]
+                step_id="init",
+                menu_options=[
+                    "add_panels",
+                    "remove_panels",
+                    "edit_map",
+                    "map_show_all",
+                    "map_hide_all",
+                ],
             )
 
         return self.async_show_menu(
-            step_id="init", menu_options=["add_cameras", "remove_cameras"]
+            step_id="init",
+            menu_options=[
+                "add_cameras",
+                "remove_cameras",
+                "edit_map",
+                "map_show_all",
+                "map_hide_all",
+            ],
+        )
+
+    async def async_step_map_show_all(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Entrada de menú directa: marca TODOS los dispositivos de esta
+        entrada como visibles en el mapa, sin mostrar ningún formulario."""
+        return await self._async_set_map_de_todos(True)
+
+    async def async_step_map_hide_all(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Igual que async_step_map_show_all, pero para ocultarlos todos."""
+        return await self._async_set_map_de_todos(False)
+
+    async def _async_set_map_de_todos(
+        self, mostrar_en_mapa: bool
+    ) -> config_entries.ConfigFlowResult:
+        es_panel = self.config_entry.data.get(CONF_DEVICE_TYPE) == DEVICE_TYPE_VMS
+        clave_datos = CONF_PANELS if es_panel else CONF_CAMERAS
+        existentes = self.config_entry.data.get(clave_datos, [])
+
+        # OJO: NUNCA mutar los dicts de "existentes" in situ (son los MISMOS
+        # objetos que cuelgan de self.config_entry.data). Si lo hiciéramos,
+        # para cuando llamemos a async_update_entry más abajo, entry.data ya
+        # sería idéntico al "nuevo" data que le pasamos -- Home Assistant
+        # compara por valor antes de avisar a los listeners, así que
+        # entendería "no ha cambiado nada" y NUNCA recargaría la entrada. El
+        # dato quedaría guardado (por eso el formulario de edit_map lo
+        # reflejaría bien), pero las entidades vivas seguirían con sus
+        # atributos antiguos para siempre. Por eso aquí se construye un
+        # dict NUEVO para cada dispositivo que cambia, dejando el original
+        # intacto.
+        nuevos: list[dict[str, Any]] = []
+        cambiados = False
+        for dispositivo in existentes:
+            if bool(dispositivo.get(CONF_SHOW_ON_MAP, CONF_SHOW_ON_MAP_DEFAULT)) != mostrar_en_mapa:
+                dispositivo = {**dispositivo, CONF_SHOW_ON_MAP: mostrar_en_mapa}
+                cambiados = True
+            nuevos.append(dispositivo)
+
+        if not cambiados:
+            return self.async_create_entry(title="", data={})
+
+        self.hass.config_entries.async_update_entry(
+            self.config_entry,
+            data={**self.config_entry.data, clave_datos: nuevos},
+        )
+        return self.async_create_entry(title="", data={})
+
+    async def async_step_edit_map(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Cambia el interruptor de mapa de los dispositivos YA guardados en esta entrada.
+
+        CONF_SHOW_ON_MAP es por dispositivo (se pregunta al añadirlo); esto
+        es lo que deja cambiarlo después sin tener que quitar y volver a
+        añadir el dispositivo. Se muestra como una lista de casillas, igual
+        que "Quitar cámaras/paneles", con las que ya se ven en el mapa
+        marcadas de entrada.
+        """
+        es_panel = self.config_entry.data.get(CONF_DEVICE_TYPE) == DEVICE_TYPE_VMS
+        clave_datos = CONF_PANELS if es_panel else CONF_CAMERAS
+        clave_ids = "panel_ids" if es_panel else "camera_ids"
+        existentes = list(self.config_entry.data.get(clave_datos, []))
+
+        if not existentes:
+            return self.async_abort(
+                reason="no_panels_to_remove" if es_panel else "no_cameras_to_remove"
+            )
+
+        if user_input is not None:
+            seleccionados = set(user_input[clave_ids])
+            # Ver el comentario de _async_set_map_de_todos: NUNCA mutar los
+            # dicts de "existentes" in situ, o Home Assistant no detecta el
+            # cambio y no recarga la entrada.
+            nuevos: list[dict[str, Any]] = []
+            cambiados = False
+            for dispositivo in existentes:
+                nuevo_valor = dispositivo.get("device_id") in seleccionados
+                if bool(dispositivo.get(CONF_SHOW_ON_MAP, CONF_SHOW_ON_MAP_DEFAULT)) != nuevo_valor:
+                    dispositivo = {**dispositivo, CONF_SHOW_ON_MAP: nuevo_valor}
+                    cambiados = True
+                nuevos.append(dispositivo)
+
+            if not cambiados:
+                return self.async_create_entry(title="", data={})
+
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                data={**self.config_entry.data, clave_datos: nuevos},
+            )
+            return self.async_create_entry(title="", data={})
+
+        return self.async_show_form(
+            step_id="edit_map",
+            data_schema=_edit_map_schema(existentes, clave_ids),
         )
 
     async def async_step_add_cameras(
@@ -458,7 +618,24 @@ class DgtTrafficCamerasOptionsFlow(config_entries.OptionsFlow):
                 # ronda entera de descargas de imágenes) para nada.
                 return self.async_create_entry(title="", data={})
 
-            merged = existing + realmente_nuevas
+            self._pending_cameras = realmente_nuevas
+            return await self.async_step_cameras_map()
+
+        return self.async_show_form(
+            step_id="cameras", data_schema=_cameras_schema(candidates)
+        )
+
+    async def async_step_cameras_map(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Ver el comentario de DgtTrafficCamerasConfigFlow.async_step_camera_map."""
+        if user_input is not None:
+            mostrar_en_mapa = user_input[CONF_SHOW_ON_MAP]
+            for camera_data in self._pending_cameras:
+                camera_data[CONF_SHOW_ON_MAP] = mostrar_en_mapa
+
+            existing = list(self.config_entry.data.get(CONF_CAMERAS, []))
+            merged = existing + self._pending_cameras
 
             # async_update_entry ya dispara por sí solo el listener que
             # recarga la integración (ver __init__.py). Antes, además de
@@ -470,7 +647,7 @@ class DgtTrafficCamerasOptionsFlow(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data={})
 
         return self.async_show_form(
-            step_id="cameras", data_schema=_cameras_schema(candidates)
+            step_id="cameras_map", data_schema=_show_on_map_schema()
         )
 
     async def async_step_remove_cameras(
@@ -598,14 +775,31 @@ class DgtTrafficCamerasOptionsFlow(config_entries.OptionsFlow):
                 # ella, una descarga de mensajes) para nada.
                 return self.async_create_entry(title="", data={})
 
-            merged = existing + realmente_nuevos
+            self._pending_panels = realmente_nuevos
+            return await self.async_step_panels_map()
+
+        return self.async_show_form(
+            step_id="panels", data_schema=_panels_schema(candidates)
+        )
+
+    async def async_step_panels_map(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Ver el comentario de DgtTrafficCamerasConfigFlow.async_step_camera_map."""
+        if user_input is not None:
+            mostrar_en_mapa = user_input[CONF_SHOW_ON_MAP]
+            for panel_data in self._pending_panels:
+                panel_data[CONF_SHOW_ON_MAP] = mostrar_en_mapa
+
+            existing = list(self.config_entry.data.get(CONF_PANELS, []))
+            merged = existing + self._pending_panels
             self.hass.config_entries.async_update_entry(
                 self.config_entry, data={**self.config_entry.data, CONF_PANELS: merged}
             )
             return self.async_create_entry(title="", data={})
 
         return self.async_show_form(
-            step_id="panels", data_schema=_panels_schema(candidates)
+            step_id="panels_map", data_schema=_show_on_map_schema()
         )
 
     async def async_step_remove_panels(
@@ -726,6 +920,47 @@ def _panels_schema(candidates: list[DgtPanelLocation]) -> vol.Schema:
     return vol.Schema(
         {
             vol.Required("panel_ids"): SelectSelector(
+                SelectSelectorConfig(
+                    options=options,
+                    multiple=True,
+                    mode=SelectSelectorMode.LIST,
+                )
+            )
+        }
+    )
+
+
+def _show_on_map_schema() -> vol.Schema:
+    """Casilla "¿se ven en el mapa?" que se pregunta al añadir dispositivos.
+
+    Se aplica a TODOS los dispositivos elegidos en ese mismo paso; el valor
+    se guarda luego en cada dict de dispositivo por separado (CONF_SHOW_ON_MAP).
+    """
+    return vol.Schema(
+        {vol.Required(CONF_SHOW_ON_MAP, default=CONF_SHOW_ON_MAP_DEFAULT): bool}
+    )
+
+
+def _edit_map_schema(devices: list[dict[str, Any]], id_field: str) -> vol.Schema:
+    """Lista de casillas para editar CONF_SHOW_ON_MAP de dispositivos ya guardados.
+
+    Como "Quitar cámaras/paneles", pero en vez de "marca los que quieres
+    quitar", aquí es "marca los que quieres que se vean en el mapa": vienen
+    premarcados los que ya se ven, para que abrir el paso sin tocar nada no
+    cambie el estado de ninguno.
+    """
+    options = [
+        SelectOptionDict(value=d["device_id"], label=d.get("name") or d["device_id"])
+        for d in devices
+    ]
+    ya_visibles = [
+        d["device_id"]
+        for d in devices
+        if d.get(CONF_SHOW_ON_MAP, CONF_SHOW_ON_MAP_DEFAULT)
+    ]
+    return vol.Schema(
+        {
+            vol.Required(id_field, default=ya_visibles): SelectSelector(
                 SelectSelectorConfig(
                     options=options,
                     multiple=True,

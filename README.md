@@ -25,7 +25,6 @@ La DGT publica **instantáneas fijas** de las cámaras, no vídeo en directo: ca
 - **No hay vídeo ni grabación.** Solo la última imagen disponible de cada cámara.
 - No almacena ni redistribuye imágenes: cada instalación las descarga directamente de los servidores de la DGT.
 - **No detecta averías de los paneles.** El feed actual de la DGT no incluye ningún indicador de fallo del propio panel; solo se puede saber si un panel no está emitiendo ningún mensaje ahora mismo (se refleja como "sin mensaje" o "sin datos", no como avería).
-- No muestra cámaras ni paneles en el mapa de Home Assistant (se valoró añadirlo, pero la forma de personalizar la etiqueta de cada punto requiere montar una tarjeta de Mapa aparte en un dashboard, así que de momento queda fuera).
 
 ---
 
@@ -68,6 +67,15 @@ Cada combinación de provincia + carretera + tipo crea una entrada propia, que a
 Usa el botón de **Opciones** (el engranaje) de esa entrada. Si es una entrada de cámaras, te ofrece **Añadir cámaras** / **Quitar cámaras**; si es de paneles, **Añadir paneles** / **Quitar paneles**. Para una carretera o provincia distinta, añade una nueva entrada desde cero.
 
 Al quitar un dispositivo, su entidad se elimina por completo de Home Assistant (no se queda como "no disponible"). No se pueden quitar todos los dispositivos de una entrada desde aquí: si quieres vaciarla del todo, elimina la entrada entera desde **Dispositivos y servicios**.
+
+### Mostrar en el mapa de Home Assistant
+
+Las cámaras y los paneles pueden exponer su ubicación como atributos `latitude`/`longitude`, así que el mapa nativo de Home Assistant (el dashboard "Mapa" por defecto) los pinta como un punto sin necesitar ninguna tarjeta aparte. Es una opción **por dispositivo** (no afecta a toda la integración a la vez) y está **activada por defecto**.
+
+Se pregunta al añadir cada cámara o panel (se aplica a todos los que elijas en ese mismo paso). Para cambiarlo después en dispositivos que ya tengas añadidos, entra en **Opciones** de su entrada:
+
+- **Cambiar qué se ve en el mapa** — lista con casillas, con los que ya se ven en el mapa marcados de entrada, para ajustar dispositivo a dispositivo.
+- **Mostrar todos en el mapa** / **Ocultar todos del mapa** — aplica el cambio a todos los dispositivos de esa entrada de golpe, sin formulario.
 
 ### Tarjeta del panel (opcional)
 

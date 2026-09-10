@@ -102,7 +102,12 @@ def _ensure_stubs() -> None:
                     raise AbortFlow("already_configured")
 
             def async_show_form(self, *, step_id, data_schema, errors=None):
-                return {"type": "form", "step_id": step_id, "errors": errors}
+                return {
+                    "type": "form",
+                    "step_id": step_id,
+                    "data_schema": data_schema,
+                    "errors": errors,
+                }
 
             def async_abort(self, *, reason):
                 return {"type": "abort", "reason": reason}
@@ -198,6 +203,9 @@ def _ensure_stubs() -> None:
 
         class Camera:  # noqa: D401 - stub
             def __init__(self):
+                pass
+
+            async def async_added_to_hass(self) -> None:
                 pass
 
         class CameraEntityFeature(enum.IntFlag):

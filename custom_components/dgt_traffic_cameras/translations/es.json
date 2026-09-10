@@ -28,6 +28,13 @@
           "camera_ids": "Cámaras"
         }
       },
+      "camera_map": {
+        "title": "Mostrar en el mapa de Home Assistant",
+        "description": "Se aplica a las cámaras que acabas de elegir. Si está activado, exponen su ubicación (latitude/longitude) como atributo y el mapa nativo de Home Assistant las pinta como un punto, sin necesitar ninguna tarjeta de Mapa aparte. Se puede cambiar después, cámara a cámara, desde Opciones.",
+        "data": {
+          "show_on_map": "Mostrar en el mapa"
+        }
+      },
       "panel_province": {
         "title": "Paneles de mensaje variable DGT",
         "description": "Elige la provincia. Nota: el feed de la DGT no incluye País Vasco ni Cataluña.",
@@ -45,6 +52,13 @@
         "title": "Elige los paneles a añadir",
         "data": {
           "panel_ids": "Paneles"
+        }
+      },
+      "panel_map": {
+        "title": "Mostrar en el mapa de Home Assistant",
+        "description": "Se aplica a los paneles que acabas de elegir. Si está activado, exponen su ubicación (latitude/longitude) como atributo y el mapa nativo de Home Assistant los pinta como un punto, sin necesitar ninguna tarjeta de Mapa aparte. Se puede cambiar después, panel a panel, desde Opciones.",
+        "data": {
+          "show_on_map": "Mostrar en el mapa"
         }
       }
     },
@@ -70,7 +84,10 @@
           "add_cameras": "Añadir cámaras",
           "remove_cameras": "Quitar cámaras",
           "add_panels": "Añadir paneles",
-          "remove_panels": "Quitar paneles"
+          "remove_panels": "Quitar paneles",
+          "edit_map": "Cambiar qué se ve en el mapa",
+          "map_show_all": "Mostrar todos en el mapa",
+          "map_hide_all": "Ocultar todos del mapa"
         }
       },
       "province": {
@@ -89,6 +106,13 @@
         "title": "Elige las cámaras a añadir",
         "data": {
           "camera_ids": "Cámaras"
+        }
+      },
+      "cameras_map": {
+        "title": "Mostrar en el mapa de Home Assistant",
+        "description": "Se aplica a las cámaras que acabas de elegir. Se puede cambiar después, cámara a cámara, desde \"Cambiar qué se ve en el mapa\".",
+        "data": {
+          "show_on_map": "Mostrar en el mapa"
         }
       },
       "remove_cameras": {
@@ -115,10 +139,25 @@
           "panel_ids": "Paneles"
         }
       },
+      "panels_map": {
+        "title": "Mostrar en el mapa de Home Assistant",
+        "description": "Se aplica a los paneles que acabas de elegir. Se puede cambiar después, panel a panel, desde \"Cambiar qué se ve en el mapa\".",
+        "data": {
+          "show_on_map": "Mostrar en el mapa"
+        }
+      },
       "remove_panels": {
         "title": "Elige los paneles a quitar",
         "data": {
           "panel_ids": "Paneles"
+        }
+      },
+      "edit_map": {
+        "title": "Cambiar qué se ve en el mapa",
+        "description": "Marca los dispositivos que quieres que aparezcan en el mapa nativo de Home Assistant. Los que desmarques dejarán de exponer su ubicación (latitude/longitude) como atributo.",
+        "data": {
+          "camera_ids": "Cámaras que se ven en el mapa",
+          "panel_ids": "Paneles que se ven en el mapa"
         }
       }
     },

@@ -19,7 +19,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import short_entity_name
-from .const import CONF_PANELS, DOMAIN
+from .const import CONF_PANELS, CONF_SHOW_ON_MAP, CONF_SHOW_ON_MAP_DEFAULT, DOMAIN
 from .coordinator import DATA_COORDINATOR_BY_ENTRY, DgtVmsMessagesCoordinator
 from .http_views import PICTOGRAM_PROXY_URL
 from .vms_messages import PanelMessageState
@@ -105,7 +105,17 @@ class DgtPanelSensor(CoordinatorEntity[DgtVmsMessagesCoordinator], SensorEntity)
             "provincia": panel_data.get("province"),
             "punto_kilometrico": panel_data.get("kilometer_point"),
         }
-        if panel_data.get("latitude") is not None and panel_data.get("longitude") is not None:
+        # Ver el comentario equivalente en camera.py: CONF_SHOW_ON_MAP es
+        # POR DISPOSITIVO (vive en panel_data, no en las options de la
+        # entrada) y decide si estos dos atributos existen o no, ya que es
+        # la única forma de ocultar este panel concreto del mapa nativo de
+        # Home Assistant.
+        mostrar_en_mapa = panel_data.get(CONF_SHOW_ON_MAP, CONF_SHOW_ON_MAP_DEFAULT)
+        if (
+            mostrar_en_mapa
+            and panel_data.get("latitude") is not None
+            and panel_data.get("longitude") is not None
+        ):
             self._static_attributes["latitude"] = panel_data.get("latitude")
             self._static_attributes["longitude"] = panel_data.get("longitude")
 
