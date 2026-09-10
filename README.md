@@ -12,7 +12,7 @@ Integración personalizada que añade las cámaras de tráfico y los paneles de 
 
 - Descarga los datos públicos de la DGT (formato DATEX II, sin necesidad de clave de API): el inventario de cámaras y, por separado, la ubicación y los mensajes de los paneles de mensaje variable (PMV).
 - Te deja elegir, en el mismo asistente guiado, entre **cámaras** o **paneles**, y dentro de cada tipo en tres pasos: **provincia → carretera → dispositivos concretos**.
-- Crea una entidad `camera.*` por cada cámara seleccionada, con su carretera, punto kilométrico, sentido y coordenadas como atributos.
+- Crea una entidad `camera.*` por cada cámara seleccionada, con su carretera, punto kilométrico y sentido como atributos, más sus coordenadas si has dejado activado "mostrar en el mapa" para esa cámara.
 - Crea una entidad `sensor.*` por cada panel seleccionado, con el mensaje que está mostrando ahora mismo como estado, y como atributos el texto completo, sus líneas por separado, los pictogramas activos, si está apagado y la hora del último cambio. Si el panel tiene un pictograma activo (velocidad controlada, obras, etc.), la entidad muestra el icono real de la DGT para ese pictograma en vez de un icono genérico.
 - Deja añadir o quitar dispositivos de una entrada ya creada desde **Opciones**, sin tener que volver a montarla desde cero.
 - Incluye, como pieza opcional, una tarjeta de Lovelace ([`www/dgt-panel-card.js`](www/dgt-panel-card.js)) que dibuja el cartel de un panel con el mismo aspecto que el visor oficial de la DGT.
@@ -57,6 +57,7 @@ A partir de ahí el asistente es igual para los dos tipos:
 1. **Provincia** — desplegable con las provincias que tienen dispositivos de ese tipo disponibles.
 2. **Carretera** — las vías de esa provincia.
 3. **Cámaras** o **Paneles** — lista con casillas, ordenada por punto kilométrico.
+4. **Mostrar en el mapa** — si quieres que los dispositivos que acabas de elegir aparezcan en el mapa nativo de Home Assistant (ver [Mostrar en el mapa de Home Assistant](#mostrar-en-el-mapa-de-home-assistant)).
 
 Cada combinación de provincia + carretera + tipo crea una entrada propia, que agrupa sus dispositivos bajo un mismo dispositivo de Home Assistant. Una misma entrada nunca mezcla cámaras y paneles.
 
@@ -64,7 +65,7 @@ Cada combinación de provincia + carretera + tipo crea una entrada propia, que a
 
 ### Añadir o quitar dispositivos de una entrada ya creada
 
-Usa el botón de **Opciones** (el engranaje) de esa entrada. Si es una entrada de cámaras, te ofrece **Añadir cámaras** / **Quitar cámaras**; si es de paneles, **Añadir paneles** / **Quitar paneles**. Para una carretera o provincia distinta, añade una nueva entrada desde cero.
+Usa el botón de **Opciones** (el engranaje) de esa entrada. Si es una entrada de cámaras, te ofrece **Añadir cámaras** / **Quitar cámaras**; si es de paneles, **Añadir paneles** / **Quitar paneles** (además de las opciones para el mapa, ver más abajo). Para una carretera o provincia distinta, añade una nueva entrada desde cero.
 
 Al quitar un dispositivo, su entidad se elimina por completo de Home Assistant (no se queda como "no disponible"). No se pueden quitar todos los dispositivos de una entrada desde aquí: si quieres vaciarla del todo, elimina la entrada entera desde **Dispositivos y servicios**.
 
@@ -133,7 +134,7 @@ Los paneles no funcionan cámara a cámara: **una única descarga cada 5 minutos
 
 - Home Assistant en una versión reciente (la integración usa el flujo de opciones moderno, disponible desde 2024.11).
 - Para que se muestre el icono de la integración se necesita **Home Assistant 2026.3 o superior**, que es cuando se añadió el soporte para imágenes de marca locales. En versiones anteriores todo funciona igual, pero se verá el marcador genérico de "icono no disponible".
-- Depende de **Pillow** (procesamiento de imágenes), que Home Assistant instala solo al añadir la integración; no requiere ninguna otra dependencia de Python.
+- Depende de **Pillow** (procesamiento de imágenes) y **defusedxml** (parseo seguro del XML de la DGT), que Home Assistant instala solo al añadir la integración; no requiere nada más por tu parte.
 
 ## Resolución de problemas
 
