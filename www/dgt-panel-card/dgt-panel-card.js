@@ -17,7 +17,7 @@
  *
  * PRIVACIDAD (I-06): el icono de cabecera y el fondo del cartel son dos
  * imágenes fijas de la DGT que no cambian nunca, así que se empaquetan
- * aquí mismo (dgt-panel-card-header.png / dgt-panel-card-background.png)
+ * en esta misma carpeta (dgt-panel-card-header.png / dgt-panel-card-background.png)
  * en vez de enlazarlas en caliente a etraffic.dgt.es: así el navegador de
  * quien vea el dashboard no contacta con la DGT solo por ver la tarjeta.
  * El pictograma SÍ cambia según el mensaje del panel (son cientos de
@@ -27,16 +27,16 @@
  * de la DGT — esta tarjeta simplemente la usa tal cual, sin saber que es
  * un proxy.
  *
- * Instalación: copia este fichero (y las dos imágenes .png de al lado) a
- * config/www/ y añade dgt-panel-card.js como recurso en Configuración >
- * Paneles de control > Recursos (tipo "Módulo JavaScript", URL
- * "/local/dgt-panel-card.js"). Después, en cualquier dashboard, añade una
- * tarjeta de tipo "Custom: DGT Panel Card" (o en YAML:
- * type: custom:dgt-panel-card, entity: sensor.tu_panel).
+ * Instalación: copia la carpeta "dgt-panel-card" entera (con sus dos
+ * imágenes .png) a config/www/ y añade dgt-panel-card.js como recurso en
+ * Configuración > Paneles de control > Recursos (tipo "Módulo JavaScript",
+ * URL "/local/dgt-panel-card/dgt-panel-card.js"). Después, en cualquier
+ * dashboard, añade una tarjeta de tipo "Custom: DGT Panel Card" (o en
+ * YAML: type: custom:dgt-panel-card, entity: sensor.tu_panel).
  */
 
-const URL_ICONO_CABECERA = "/local/dgt-panel-card-header.png";
-const URL_FONDO_CARTEL = "/local/dgt-panel-card-background.png";
+const URL_ICONO_CABECERA = "/local/dgt-panel-card/dgt-panel-card-header.png";
+const URL_FONDO_CARTEL = "/local/dgt-panel-card/dgt-panel-card-background.png";
 
 // Datos de mentira para cuando la tarjeta se muestra sin una entidad
 // configurada (por ejemplo, en la vista previa del selector de tarjetas
