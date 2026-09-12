@@ -177,5 +177,11 @@
       "no_cameras_to_remove": "Esta entrada no tiene ninguna cámara guardada.",
       "no_panels_to_remove": "Esta entrada no tiene ningún panel guardado."
     }
+  },
+  "issues": {
+    "recurso_lovelace_tarjeta_panel": {
+      "title": "Añade o actualiza el recurso de la tarjeta del panel",
+      "description": "La tarjeta de Lovelace del panel de mensaje variable ya no requiere copiar archivos a `config/www/`: se sirve sola desde la propia integración. Ve a **Ajustes → Paneles de control → Recursos** y añade (o edita, si ya tenías uno de una versión anterior) un recurso de tipo **Módulo JavaScript** con esta URL:\n\n`{url}`\n\nSi ya tenías la tarjeta instalada a mano, borra también la copia antigua en `config/www/dgt-panel-card/` y el recurso viejo (con URL `/local/...`): tenerlos los dos a la vez rompe la tarjeta."
+    }
   }
 }

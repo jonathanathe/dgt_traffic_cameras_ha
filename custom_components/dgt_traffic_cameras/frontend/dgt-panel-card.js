@@ -27,16 +27,18 @@
  * de la DGT — esta tarjeta simplemente la usa tal cual, sin saber que es
  * un proxy.
  *
- * Instalación: copia la carpeta "dgt-panel-card" entera (con sus dos
- * imágenes .png) a config/www/ y añade dgt-panel-card.js como recurso en
- * Configuración > Paneles de control > Recursos (tipo "Módulo JavaScript",
- * URL "/local/dgt-panel-card/dgt-panel-card.js"). Después, en cualquier
- * dashboard, añade una tarjeta de tipo "Custom: DGT Panel Card" (o en
- * YAML: type: custom:dgt-panel-card, entity: sensor.tu_panel).
+ * Instalación: NINGUNA. Este fichero vive dentro de la propia integración
+ * (custom_components/dgt_traffic_cameras/frontend/) y frontend_registration.py
+ * lo registra solo, tanto la ruta HTTP como el recurso de Lovelace, la
+ * primera vez que arranca Home Assistant tras instalar o actualizar. No
+ * hace falta copiar nada a config/www/ ni tocar Ajustes > Recursos a mano.
+ * La URL de abajo (FRONTEND_URL_BASE) debe coincidir exactamente con la
+ * constante del mismo nombre en const.py.
  */
 
-const URL_ICONO_CABECERA = "/local/dgt-panel-card/dgt-panel-card-header.png";
-const URL_FONDO_CARTEL = "/local/dgt-panel-card/dgt-panel-card-background.png";
+const FRONTEND_URL_BASE = "/dgt_traffic_cameras_frontend";
+const URL_ICONO_CABECERA = `${FRONTEND_URL_BASE}/dgt-panel-card-header.png`;
+const URL_FONDO_CARTEL = `${FRONTEND_URL_BASE}/dgt-panel-card-background.png`;
 
 // Comprueba si una entidad es un panel de mensaje variable de esta
 // integración. OJO: "punto_kilometrico" NO sirve para distinguir un panel

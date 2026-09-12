@@ -32,6 +32,7 @@ from .const import (
     DEVICE_TYPE_VMS,
     DOMAIN,
 )
+from .frontend_registration import async_register_frontend
 from .http_views import DgtPictogramProxyView
 from .pictogram_proxy import clear_pictogram_cache
 
@@ -86,9 +87,11 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     pictogramas (I-06) es una única ruta HTTP compartida por todas las
     entidades sensor.*, así que tiene que registrarse aquí y no allí: si
     se registrara en async_setup_entry, tener dos entradas de paneles
-    intentaría registrar la misma ruta dos veces.
+    intentaría registrar la misma ruta dos veces. Lo mismo aplica al
+    frontend de la tarjeta del panel (ver frontend_registration.py).
     """
     hass.http.register_view(DgtPictogramProxyView())
+    await async_register_frontend(hass)
     return True
 
 
