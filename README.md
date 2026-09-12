@@ -89,7 +89,7 @@ Se pregunta al añadir cada cámara o panel (se aplica a todos los que elijas en
 3. Añade un recurso nuevo: URL `/local/dgt-panel-card/dgt-panel-card.js`, tipo **Módulo JavaScript**.
 4. Recarga la página del navegador (Ctrl+F5).
 
-**Uso**, en cualquier dashboard, añadiendo una tarjeta manual en YAML:
+**Uso**: en cualquier dashboard, pulsa "Añadir tarjeta" → "Por tarjeta" → "DGT Panel Card" (o elige por entidad uno de tus paneles, ver más abajo) y selecciona el panel en el desplegable del editor visual. También se puede añadir a mano en YAML:
 
 ```yaml
 type: custom:dgt-panel-card
@@ -97,6 +97,8 @@ entity: sensor.dgt_pmv_xxxxx
 ```
 
 Si el panel no tiene ningún mensaje activo, la tarjeta muestra el cartel vacío con "Sin mensaje" en vez de inventarse contenido.
+
+En Home Assistant 2026.6 o posterior no hace falta ni buscarla en la lista: al pulsar "Añadir tarjeta" y elegir por entidad una que sea un panel de esta integración, "DGT Panel Card" aparece como sugerencia en la sección "Comunidad", junto a Mosaico y demás. En versiones anteriores de Home Assistant esta sugerencia automática no está disponible, pero el editor visual (el desplegable para elegir la entidad) sí funciona igual.
 
 ---
 

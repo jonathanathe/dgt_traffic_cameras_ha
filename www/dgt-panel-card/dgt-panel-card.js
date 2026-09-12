@@ -38,6 +38,20 @@
 const URL_ICONO_CABECERA = "/local/dgt-panel-card/dgt-panel-card-header.png";
 const URL_FONDO_CARTEL = "/local/dgt-panel-card/dgt-panel-card-background.png";
 
+// Comprueba si una entidad es un panel de mensaje variable de esta
+// integración. OJO: "punto_kilometrico" NO sirve para distinguir un panel
+// de una cámara, las dos entidades lo tienen (es un campo de ubicación
+// compartido). "lineas" sí es exclusivo de los paneles, así que se usa
+// ese, además de comprobar que sea del dominio sensor.* (las cámaras son
+// camera.*). La usan tanto getStubConfig (vista previa sin entidad
+// elegida) como getEntitySuggestion (sugerencia de tarjeta al elegir una
+// entidad concreta, Home Assistant 2026.6+).
+function _esEntidadDePanel(hass, entityId) {
+  if (!entityId || !entityId.startsWith("sensor.")) return false;
+  const estado = hass && hass.states && hass.states[entityId];
+  return Boolean(estado && estado.attributes && "lineas" in estado.attributes);
+}
+
 // Datos de mentira para cuando la tarjeta se muestra sin una entidad
 // configurada (por ejemplo, en la vista previa del selector de tarjetas
 // de Lovelace), para que se vea un ejemplo real en vez de un error. El
@@ -74,22 +88,14 @@ class DgtPanelCard extends HTMLElement {
   }
 
   static getConfigElement() {
-    return null;
+    return document.createElement("dgt-panel-card-editor");
   }
 
   static getStubConfig(hass, entities) {
     // Si el usuario ya tiene algún panel configurado, se usa uno real de
-    // verdad para la vista previa. OJO: "punto_kilometrico" NO sirve para
-    // distinguir un panel de una cámara, las dos entidades lo tienen (es
-    // un campo de ubicación compartido). "lineas" sí es exclusivo de los
-    // paneles, así que se usa ese, además de comprobar que sea del
-    // dominio sensor.* (las cámaras son camera.*). Si no hay ningún panel
-    // todavía, se deja sin entidad: la tarjeta usará DATOS_DEMO.
-    const candidato = (entities || []).find((entityId) => {
-      if (!entityId.startsWith("sensor.")) return false;
-      const estado = hass && hass.states && hass.states[entityId];
-      return Boolean(estado && estado.attributes && "lineas" in estado.attributes);
-    });
+    // verdad para la vista previa. Si no hay ningún panel todavía, se
+    // deja sin entidad: la tarjeta usará DATOS_DEMO.
+    const candidato = (entities || []).find((entityId) => _esEntidadDePanel(hass, entityId));
     return { entity: candidato || "" };
   }
 
@@ -250,6 +256,60 @@ class DgtPanelCard extends HTMLElement {
 
 customElements.define("dgt-panel-card", DgtPanelCard);
 
+// Editor visual de la tarjeta (pestaña "Mostrar editor visual" del diálogo
+// de configuración): un único selector de entidad, reutilizando el
+// <ha-entity-picker> que ya trae Home Assistant, filtrado para que solo
+// aparezcan paneles de esta integración (ver _esEntidadDePanel). No usa
+// LitElement a propósito, para no añadir una dependencia solo por esto.
+class DgtPanelCardEditor extends HTMLElement {
+  setConfig(config) {
+    this._config = config || {};
+    this._actualizarPicker();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._construirSiHaceFalta();
+    this._actualizarPicker();
+  }
+
+  _construirSiHaceFalta() {
+    // Se espera a tener "hass" antes de crear el <ha-entity-picker>: sin
+    // él no puede resolver ni mostrar ninguna entidad.
+    if (this._construido || !this._hass) return;
+    this._construido = true;
+
+    const contenedor = document.createElement("div");
+    contenedor.style.padding = "12px 0";
+
+    this._picker = document.createElement("ha-entity-picker");
+    this._picker.label = "Panel (entidad)";
+    this._picker.entityFilter = (stateObj) =>
+      _esEntidadDePanel(this._hass, stateObj.entity_id);
+    this._picker.addEventListener("value-changed", (evento) => {
+      evento.stopPropagation();
+      this._config = { ...this._config, entity: evento.detail.value || "" };
+      this.dispatchEvent(
+        new CustomEvent("config-changed", {
+          detail: { config: this._config },
+          bubbles: true,
+          composed: true,
+        })
+      );
+    });
+
+    contenedor.appendChild(this._picker);
+    this.appendChild(contenedor);
+  }
+
+  _actualizarPicker() {
+    if (!this._picker) return;
+    this._picker.hass = this._hass;
+    this._picker.value = (this._config && this._config.entity) || "";
+  }
+}
+customElements.define("dgt-panel-card-editor", DgtPanelCardEditor);
+
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "dgt-panel-card",
@@ -260,4 +320,13 @@ window.customCards.push({
   // (Home Assistant 2026.6+); por defecto es false y sin ella el
   // selector solo muestra este nombre y descripción, sin renderizar nada.
   preview: true,
+  // "getEntitySuggestion" (Home Assistant 2026.6+) hace que esta tarjeta
+  // aparezca como recomendada, junto a Mosaico/Entidad/etc., al elegir en
+  // el diálogo "Añadir tarjeta" una entidad que sea un panel de esta
+  // integración. En versiones anteriores de Home Assistant esta función
+  // simplemente se ignora, sin romper nada.
+  getEntitySuggestion: (hass, entityId) => {
+    if (!_esEntidadDePanel(hass, entityId)) return null;
+    return { config: { type: "custom:dgt-panel-card", entity: entityId } };
+  },
 });
