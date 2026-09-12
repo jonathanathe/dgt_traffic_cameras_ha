@@ -327,3 +327,24 @@ PLACEHOLDER_IMAGE_AHASH = int(
 # carretera de verdad (que da una distancia altísima, cientos de bits)
 # con el aviso de "no disponible".
 PLACEHOLDER_IMAGE_AHASH_MAX_DISTANCE = 16
+
+# ---------------------------------------------------------------------------
+# Tarjeta de Lovelace (frontend)
+# ---------------------------------------------------------------------------
+
+# Prefijo de la ruta HTTP estática por la que se sirve la tarjeta
+# "dgt-panel-card" (el .js y sus dos imágenes, ver frontend_registration.py
+# y custom_components/dgt_traffic_cameras/frontend/). Vive dentro de la
+# propia integración, no en config/www/, para que HACS la actualice sola
+# junto con el resto del código, sin ningún paso manual.
+#
+# OJO: dgt-panel-card.js tiene esta misma URL hardcodeada (no puede
+# importar Python) — si cambia aquí, hay que cambiarla también allí.
+FRONTEND_URL_BASE = "/dgt_traffic_cameras_frontend"
+
+# Carpeta física servida bajo FRONTEND_URL_BASE, relativa a este fichero.
+FRONTEND_DIR_NAME = "frontend"
+
+# Nombre del módulo JavaScript de la tarjeta, para registrarlo como
+# recurso de Lovelace.
+FRONTEND_CARD_FILENAME = "dgt-panel-card.js"

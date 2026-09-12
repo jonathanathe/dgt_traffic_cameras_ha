@@ -315,6 +315,33 @@ def _ensure_stubs() -> None:
 
         http_mod.HomeAssistantView = HomeAssistantView
 
+        class StaticPathConfig:  # noqa: D401 - stub
+            """Lo mínimo para que frontend_registration.py se pueda
+            importar (solo guarda sus argumentos; async_register_static_paths
+            de verdad exige un servidor HTTP real, ver la nota de
+            frontend_registration.py sobre qué se prueba a mano)."""
+
+            def __init__(self, url_path, path, cache_headers):
+                self.url_path = url_path
+                self.path = path
+                self.cache_headers = cache_headers
+
+        http_mod.StaticPathConfig = StaticPathConfig
+
+    if "homeassistant.helpers.issue_registry" not in sys.modules:
+        issue_registry_mod = _module("homeassistant.helpers.issue_registry")
+
+        class IssueSeverity:  # noqa: D401 - stub
+            WARNING = "warning"
+            ERROR = "error"
+            CRITICAL = "critical"
+
+        def async_create_issue(*args, **kwargs):  # noqa: D401 - stub
+            pass
+
+        issue_registry_mod.IssueSeverity = IssueSeverity
+        issue_registry_mod.async_create_issue = async_create_issue
+
     if "aiohttp" not in sys.modules:
         aiohttp = _module("aiohttp")
 
