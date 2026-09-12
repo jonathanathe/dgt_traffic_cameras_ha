@@ -9,5 +9,5 @@
   "iot_class": "cloud_polling",
   "loggers": ["custom_components.dgt_traffic_cameras"],
   "requirements": ["Pillow>=10.0.0", "defusedxml>=0.7.1"],
-  "version": "1.6.0"
+  "version": "1.7.0"
 }
