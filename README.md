@@ -15,7 +15,7 @@ Integración personalizada que añade las cámaras de tráfico y los paneles de 
 - Crea una entidad `camera.*` por cada cámara seleccionada, con su carretera, punto kilométrico y sentido como atributos, más sus coordenadas si has dejado activado "mostrar en el mapa" para esa cámara.
 - Crea una entidad `sensor.*` por cada panel seleccionado, con el mensaje que está mostrando ahora mismo como estado, y como atributos el texto completo, sus líneas por separado, los pictogramas activos, si está apagado y la hora del último cambio. Si el panel tiene un pictograma activo (velocidad controlada, obras, etc.), la entidad muestra el icono real de la DGT para ese pictograma en vez de un icono genérico.
 - Deja añadir o quitar dispositivos de una entrada ya creada desde **Opciones**, sin tener que volver a montarla desde cero.
-- Incluye, como pieza opcional, una tarjeta de Lovelace ([`custom_components/dgt_traffic_cameras/frontend/dgt-panel-card.js`](custom_components/dgt_traffic_cameras/frontend/dgt-panel-card.js)) que dibuja el cartel de un panel con el mismo aspecto que el visor oficial de la DGT.
+- Incluye, como pieza opcional, una tarjeta de Lovelace básica ([`custom_components/dgt_traffic_cameras/frontend/dgt-panel-card.js`](custom_components/dgt_traffic_cameras/frontend/dgt-panel-card.js)) que dibuja el cartel de un panel con el mismo aspecto que el visor oficial de la DGT. Para algo más completo (cámara + panel combinados, con navegación entre varias cámaras), existe también [**camera-card-slide**](https://github.com/jonathanathe/camera-card-slide), en un repositorio aparte.
 
 La DGT publica **instantáneas fijas** de las cámaras, no vídeo en directo: cada foto se renueva unas pocas veces por hora en origen. Los mensajes de los paneles se comprueban cada 5 minutos con una única descarga compartida por todos los paneles configurados, tengas 1 o 100.
 
@@ -97,6 +97,19 @@ Si el panel no tiene ningún mensaje activo, la tarjeta muestra el cartel vacío
 
 En Home Assistant 2026.6 o posterior no hace falta ni buscarla en la lista: al pulsar "Añadir tarjeta" y elegir por entidad una que sea un panel de esta integración, "DGT Panel Card" aparece como sugerencia en la sección "Comunidad", junto a Mosaico y demás. En versiones anteriores de Home Assistant esta sugerencia automática no está disponible, pero el editor visual (el desplegable para elegir la entidad) sí funciona igual.
 
+### Tarjeta combinada de cámara + panel (repositorio aparte)
+
+[**camera-card-slide**](https://github.com/jonathanathe/camera-card-slide) es una tarjeta de Lovelace en un repositorio distinto que muestra tus cámaras de tráfico de una en una, con navegación por flechas entre cámaras y, si tienes esta integración instalada, el panel de mensaje variable más cercano a la cámara que se está viendo, con el mismo aspecto que el cartel real.
+
+No es necesaria para nada de lo que hace esta integración: tiene su propia instalación (HACS o manual) — consulta las instrucciones en su propio README.
+
+```yaml
+type: custom:camera-card-slide
+cameras:
+  - camera.dgt_camara_xxxxx
+show_nearest_panel: true
+```
+
 ---
 
 ## Cómo se protege al servidor de la DGT
@@ -117,7 +130,7 @@ En un escenario de 28 cámaras con el dashboard abierto una hora, esto supone un
 
 ### Paneles de mensaje variable
 
-Los paneles no funcionan cámara a cámara: **una única descarga cada 5 minutos trae el mensaje de todos los paneles configurados a la vez**, sea cual sea su número o el de entradas de configuración que los agrupen. Tener 1 panel o 100 genera exactamente el mismo tráfico contra la DGT. Su ubicación (carretera, provincia, coordenadas) cambia muy poco, así que se cachea aparte durante 24 horas en lugar de descargarse en cada paso del asistente.
+Los paneles no funcionan panel a panel: **una única descarga cada 5 minutos trae el mensaje de todos los paneles configurados a la vez**, sea cual sea su número o el de entradas de configuración que los agrupen. Tener 1 panel o 100 genera exactamente el mismo tráfico contra la DGT. Su ubicación (carretera, provincia, coordenadas) cambia muy poco, así que se cachea aparte durante 24 horas en lugar de descargarse en cada paso del asistente.
 
 ## Otras medidas técnicas
 
