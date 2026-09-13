@@ -101,16 +101,10 @@ En Home Assistant 2026.6 o posterior no hace falta ni buscarla en la lista: al p
 
 [**camera-card-slide**](https://github.com/jonathanathe/camera-card-slide) es una tarjeta de Lovelace en un repositorio distinto que muestra tus cámaras de tráfico de una en una, con navegación por flechas entre cámaras y, si tienes esta integración instalada, el panel de mensaje variable más cercano a la cámara que se está viendo, con el mismo aspecto que el cartel real.
 
+<img width="672" height="612" alt="image" src="https://github.com/user-attachments/assets/8689fbb1-2f05-4696-9050-0ce1cf1d0be2" />
+
+
 No es necesaria para nada de lo que hace esta integración: tiene su propia instalación (HACS o manual) — consulta las instrucciones en su propio README.
-
-```yaml
-type: custom:camera-card-slide
-cameras:
-  - camera.dgt_camara_xxxxx
-show_nearest_panel: true
-```
-
----
 
 ## Cómo se protege al servidor de la DGT
 
